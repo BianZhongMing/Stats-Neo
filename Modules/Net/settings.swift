@@ -58,6 +58,7 @@ You can use a combination of any of the variables. There is only one limitation:
 """
 
 internal class Settings: NSStackView, Settings_v, NSTextFieldDelegate {
+    private var updateIntervalValue: Int = 3
     private var numberOfProcesses: Int = 8
     private var readerType: String = "interface"
     private var usageReset: String = AppUpdateInterval.never.rawValue
@@ -100,6 +101,7 @@ internal class Settings: NSStackView, Settings_v, NSTextFieldDelegate {
     
     public init(_ module: ModuleType) {
         self.title = module.stringValue
+        self.updateIntervalValue = Store.shared.int(key: "\(self.title)_updateInterval", defaultValue: self.updateIntervalValue)
         self.numberOfProcesses = Store.shared.int(key: "\(self.title)_processes", defaultValue: self.numberOfProcesses)
         self.readerType = Store.shared.string(key: "\(self.title)_reader", defaultValue: self.readerType)
         self.usageReset = Store.shared.string(key: "\(self.title)_usageReset", defaultValue: self.usageReset)
@@ -171,6 +173,11 @@ internal class Settings: NSStackView, Settings_v, NSTextFieldDelegate {
         }
         
         var prefs: [PreferencesRow] = [
+            PreferencesRow(localizedString("Update interval"), component: selectView(
+                action: #selector(self.changeUpdateInterval),
+                items: ReaderUpdateIntervals,
+                selected: "\(self.updateIntervalValue)"
+            )),
             PreferencesRow(localizedString("Reader type"), component: selectView(
                 action: #selector(self.changeReaderType),
                 items: NetworkReaders,
@@ -209,8 +216,8 @@ internal class Settings: NSStackView, Settings_v, NSTextFieldDelegate {
             )))
         }
         let section = PreferencesSection(prefs)
-        section.setRowVisibility(1, newState: self.readerType == "interface")
-        section.setRowVisibility(6, newState: self.publicIPState)
+        section.setRowVisibility(2, newState: self.readerType == "interface")
+        section.setRowVisibility(7, newState: self.publicIPState)
         self.addArrangedSubview(section)
         self.section = section
         
@@ -279,6 +286,12 @@ internal class Settings: NSStackView, Settings_v, NSTextFieldDelegate {
         return field
     }
     
+    @objc private func changeUpdateInterval(_ sender: NSMenuItem) {
+        guard let key = sender.representedObject as? String, let value = Int(key) else { return }
+        self.updateIntervalValue = value
+        Store.shared.set(key: "\(self.title)_updateInterval", value: value)
+        self.setInterval(value)
+    }
     @objc private func handleSelection(_ sender: NSPopUpButton) {
         guard let item = sender.selectedItem, let id = item.identifier?.rawValue else { return }
         

@@ -12,12 +12,12 @@
 import Cocoa
 
 public class SpeedWidget: WidgetWrapper {
-    private var icon: String = "dots"
+    private var icon: String = "arrows"
     private var valueState: Bool = true
     private var unitsState: Bool = true
     private var monochromeState: Bool = false
     private var valueColorState: String = "none"
-    private var iconColorState: String = "default"
+    private var iconColorState: String = "none"
     private var valueAlignmentState: String = "right"
     private var modeState: String = "twoRows"
     private var iconAlignmentState: String = "left"
@@ -105,9 +105,9 @@ public class SpeedWidget: WidgetWrapper {
         
         super.init(.speed, title: widgetTitle, frame: CGRect(
             x: 0,
-            y: Constants.Widget.margin.y,
+            y: 0,
             width: width,
-            height: Constants.Widget.height - (2*Constants.Widget.margin.y)
+            height: Constants.Widget.height
         ))
         self.canDrawConcurrently = true
         
@@ -248,7 +248,7 @@ public class SpeedWidget: WidgetWrapper {
         let size: CGFloat = 10
         
         let inputStringAttributes = [
-            NSAttributedString.Key.font: NSFont.systemFont(ofSize: 11, weight: .regular),
+            NSAttributedString.Key.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular),
             NSAttributedString.Key.foregroundColor: color,
             NSAttributedString.Key.paragraphStyle: style
         ]
@@ -333,8 +333,8 @@ public class SpeedWidget: WidgetWrapper {
     // MARK: - two rows
     
     private func drawTwoRows() -> CGFloat {
-        var width: CGFloat = 7
-        var x: CGFloat = 7
+        var width: CGFloat = 9
+        var x: CGFloat = 9
         
         if self.iconAlignmentState == "right" {
             x = 0
@@ -345,24 +345,24 @@ public class SpeedWidget: WidgetWrapper {
         }
         
         if self.valueState {
-            let rowWidth: CGFloat = self.unitsState ? 48 : 30
+            let rowWidth: CGFloat = self.unitsState ? 42 : 26
             let rowHeight: CGFloat = self.frame.height / 2
             let style = NSMutableParagraphStyle()
             style.alignment = self.valueAlignment
             
             let inputStringAttributes = [
-                NSAttributedString.Key.font: NSFont.systemFont(ofSize: 9, weight: .light),
+                NSAttributedString.Key.font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular),
                 NSAttributedString.Key.foregroundColor: self.inputColor(self.valueColorState),
                 NSAttributedString.Key.paragraphStyle: style
             ]
             let outputStringAttributes = [
-                NSAttributedString.Key.font: NSFont.systemFont(ofSize: 9, weight: .light),
+                NSAttributedString.Key.font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular),
                 NSAttributedString.Key.foregroundColor: self.outputColor(self.valueColorState),
                 NSAttributedString.Key.paragraphStyle: style
             ]
             
-            let inputY: CGFloat = self.displayValueState == "io" ? rowHeight + 1 : 1
-            let outputY: CGFloat = self.displayValueState == "io" ? 1 : rowHeight + 1
+            let inputY: CGFloat = self.displayValueState == "io" ? rowHeight + 2 : 2
+            let outputY: CGFloat = self.displayValueState == "io" ? 2 : rowHeight + 2
             
             var rect = CGRect(x: Constants.Widget.margin.x + x, y: inputY, width: rowWidth - (Constants.Widget.margin.x*2), height: rowHeight)
             let input = NSAttributedString.init(
@@ -414,47 +414,82 @@ public class SpeedWidget: WidgetWrapper {
     }
     
     private func drawArrows(_ width: CGFloat) {
-        let arrowAngle = CGFloat(Double.pi / 5)
-        let half = self.frame.size.height / 2
-        let scaleFactor = NSScreen.main?.backingScaleFactor ?? 1
-        let lineWidth: CGFloat = 1
-        let arrowSize: CGFloat = 3 + (scaleFactor/2)
-        var x = Constants.Widget.margin.x + arrowSize + (lineWidth / 2)
+        let height = self.frame.size.height
+        let rowHeight = height / 2
+
+        // iStat-style stroked chevron arrows: a V-shaped head on a continuous
+        // shaft, vertically centered inside each half-row with a clear gap
+        // between the up/down arrows.
+        let totalH: CGFloat = 6.0
+        let headW: CGFloat = 4.4
+        let headH: CGFloat = 2.5
+        let lineWidth: CGFloat = 1.0
+
+        // Horizontal center of the arrow column (the icon column is 9pt wide).
+        var x = Constants.Widget.margin.x + (headW / 2)
         if self.iconAlignmentState == "right" {
-            x += (width-7)
+            x += (width - 9)
         }
-        
-        let inputYStart: CGFloat = self.displayValueState == "io" ? self.frame.size.height : half - Constants.Widget.spacing/2
-        let inputYEnd: CGFloat = self.displayValueState == "io" ? (half + Constants.Widget.spacing/2)+1 : 1
-        
-        let outputYStart: CGFloat = self.displayValueState == "io" ? 0 : half + Constants.Widget.spacing/2
-        let uploadYEnd: CGFloat = self.displayValueState == "io" ? (half - Constants.Widget.spacing/2)-1 : self.frame.size.height-1
-        
-        let inputArrow = NSBezierPath()
-        inputArrow.addArrow(
-            start: CGPoint(x: x, y: inputYStart),
-            end: CGPoint(x: x, y: inputYEnd),
-            pointerLineLength: arrowSize,
-            arrowAngle: arrowAngle
+
+        // Center Y of each half-row, leaving a gap between the two arrows.
+        let topCenterY = rowHeight * 1.5 - 0.25
+        let bottomCenterY = rowHeight * 0.5 - 0.25
+
+        // Default "oi": top row = output (upload, red, arrow up), bottom row = input (download, blue, arrow down).
+        let topIsInput = (self.displayValueState == "io")
+        let topColor = topIsInput ? self.inputColor(self.iconColorState) : self.outputColor(self.iconColorState)
+        let bottomColor = topIsInput ? self.outputColor(self.iconColorState) : self.inputColor(self.iconColorState)
+
+        let topArrow = Self.lineArrowPath(
+            cx: x, centerY: topCenterY, pointsUp: !topIsInput,
+            totalH: totalH, headW: headW, headH: headH
         )
-        
-        self.inputColor(self.iconColorState).set()
-        inputArrow.lineWidth = lineWidth
-        inputArrow.stroke()
-        inputArrow.close()
-        
-        let outputArrow = NSBezierPath()
-        outputArrow.addArrow(
-            start: CGPoint(x: x, y: outputYStart),
-            end: CGPoint(x: x, y: uploadYEnd),
-            pointerLineLength: arrowSize,
-            arrowAngle: arrowAngle
+        topColor.set()
+        topArrow.lineWidth = lineWidth
+        topArrow.lineCapStyle = .round
+        topArrow.lineJoinStyle = .round
+        topArrow.stroke()
+
+        let bottomArrow = Self.lineArrowPath(
+            cx: x, centerY: bottomCenterY, pointsUp: topIsInput,
+            totalH: totalH, headW: headW, headH: headH
         )
-        
-        self.outputColor(self.iconColorState).set()
-        outputArrow.lineWidth = lineWidth
-        outputArrow.stroke()
-        outputArrow.close()
+        bottomColor.set()
+        bottomArrow.lineWidth = lineWidth
+        bottomArrow.lineCapStyle = .round
+        bottomArrow.lineJoinStyle = .round
+        bottomArrow.stroke()
+    }
+
+    /// Builds a stroked arrow path: an open V-shaped (chevron) head joined to a
+    /// short vertical shaft, matching the iStat Menus menu-bar glyph.
+    private static func lineArrowPath(cx: CGFloat, centerY: CGFloat, pointsUp: Bool,
+                                      totalH: CGFloat, headW: CGFloat, headH: CGFloat) -> NSBezierPath {
+        let top = centerY + totalH / 2
+        let bottom = centerY - totalH / 2
+        let path = NSBezierPath()
+
+        if pointsUp {
+            let headBase = top - headH
+            // Shaft runs from the bottom straight up to the tip (classic arrow ↑),
+            // so the shaft is continuous on the center axis.
+            path.move(to: CGPoint(x: cx, y: bottom))
+            path.line(to: CGPoint(x: cx, y: top))
+            // Chevron head, both wings meeting at the tip.
+            path.move(to: CGPoint(x: cx - headW / 2, y: headBase))
+            path.line(to: CGPoint(x: cx, y: top))
+            path.line(to: CGPoint(x: cx + headW / 2, y: headBase))
+        } else {
+            let headBase = bottom + headH
+            // Shaft runs from the top down to the tip.
+            path.move(to: CGPoint(x: cx, y: top))
+            path.line(to: CGPoint(x: cx, y: bottom))
+            // Chevron head.
+            path.move(to: CGPoint(x: cx - headW / 2, y: headBase))
+            path.line(to: CGPoint(x: cx, y: bottom))
+            path.line(to: CGPoint(x: cx + headW / 2, y: headBase))
+        }
+        return path
     }
     
     private func drawChars(_ width: CGFloat) {

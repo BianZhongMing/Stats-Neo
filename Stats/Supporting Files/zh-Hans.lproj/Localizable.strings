@@ -167,8 +167,17 @@
 "Resume the Stats" = "恢复Stats";
 "Combined modules" = "合并模块";
 "Show icon instead of widgets" = "显示图标而非小组件";
+"Show network speed" = "在菜单栏显示网速";
 "Combined details" = "合并详情";
 "Spacing" = "间距";
+"Combined" = "合并";
+"Components" = "组件";
+"Appearance" = "外观";
+"Enable this module first" = "请先启用此模块";
+"Module is disabled" = "模块未启用";
+"Open Combined settings" = "打开合并设置";
+"Combined page subtitle" = "合并模块独立于其他模块运行。勾选要显示的组件、拖动行可调整顺序，点击状态栏项即可查看总览；无需在其他设置页中启用对应模块。";
+"Enable %@ in its own tab to show it in the combined item" = "请在「%@」模块的设置页中启用它，启用后才会显示在合并面板中";
 "Choose file" = "选择文件";
 "Stress tests" = "压力测试";
 "Keep the menubar items position" = "保持菜单栏项目的位置"; // qwen3.8:27b

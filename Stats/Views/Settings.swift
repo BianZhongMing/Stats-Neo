@@ -28,6 +28,7 @@ class SettingsWindow: NSWindow, NSWindowDelegate, NSToolbarDelegate {
     
     private var dashboard: NSView = Dashboard()
     private var settings: ApplicationSettings = ApplicationSettings()
+    private lazy var combinedSettings: CombinedSettings = CombinedSettings()
     
     private var toggleButton: NSControl? = nil
     private var activeModuleName: String? = nil
@@ -201,7 +202,7 @@ class SettingsWindow: NSWindow, NSWindowDelegate, NSToolbarDelegate {
         }
         
         if var name = module {
-            if name == "Combined modules" { name = "Dashboard" }
+            if name == "Combined modules" { name = "Combined" }
             self.sidebarView.openMenu(name)
         }
         self.updateReaderVisibility()
@@ -223,6 +224,13 @@ class SettingsWindow: NSWindow, NSWindowDelegate, NSToolbarDelegate {
                 view = self.dashboard
                 self.toggleButton?.isHidden = true
                 self.settingsPreviewButton?.isHidden = true
+            } else if title == "Combined" {
+                self.activeModuleName = "Combined"
+                self.combinedSettings.viewWillAppear()
+                view = self.combinedSettings
+                toggleNSControlState(self.toggleButton, state: self.combinedSettings.enabled ? .on : .off)
+                self.toggleButton?.isHidden = false
+                self.settingsPreviewButton?.isHidden = true
             } else if title == "Settings" {
                 self.activeModuleName = nil
                 self.settings.viewWillAppear()
@@ -241,6 +249,10 @@ class SettingsWindow: NSWindow, NSWindowDelegate, NSToolbarDelegate {
     
     @objc private func toggleEnable(_ sender: NSControl) {
         guard let moduleName = self.activeModuleName else { return }
+        if moduleName == "Combined" {
+            self.combinedSettings.setEnabled(controlState(sender))
+            return
+        }
         NotificationCenter.default.post(name: .toggleModule, object: nil, userInfo: ["module": moduleName, "state": controlState(sender)])
     }
     
@@ -335,6 +347,7 @@ private class SidebarView: NSStackView {
     }
     
     private var dashboardIcon: NSImage { NSImage(systemSymbolName: "circle.grid.3x3.fill", accessibilityDescription: nil)! }
+    private var combinedIcon: NSImage { iconFromSymbol(name: "rectangle.stack.fill", scale: .large) }
     private var settingsIcon: NSImage { iconFromSymbol(name: "gear", scale: .large) }
     private var bugIcon: NSImage { iconFromSymbol(name: "ladybug", scale: .large) }
     private var supportIcon: NSImage { iconFromSymbol(name: "heart.fill", scale: .large) }
@@ -356,6 +369,7 @@ private class SidebarView: NSStackView {
         spacer.heightAnchor.constraint(equalToConstant: 10).isActive = true
         
         self.scrollView.stackView.addArrangedSubview(MenuItem(icon: self.dashboardIcon, title: "Dashboard"))
+        self.scrollView.stackView.addArrangedSubview(MenuItem(icon: self.combinedIcon, title: "Combined"))
         self.scrollView.stackView.addArrangedSubview(spacer)
         
         self.supportPopover.behavior = .transient
@@ -407,7 +421,7 @@ private class SidebarView: NSStackView {
         list.reversed().forEach { (m: Module) in
             if !m.available { return }
             let menu: NSView = MenuItem(icon: m.config.icon, title: m.config.name)
-            self.scrollView.stackView.insertArrangedSubview(menu, at: 2)
+            self.scrollView.stackView.insertArrangedSubview(menu, at: 3)
         }
     }
     

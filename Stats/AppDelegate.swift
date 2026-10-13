@@ -154,6 +154,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     
     private func showSettingsIfNoActiveWidgets() {
         if self.pauseState { return }
+        // Combined is an independent active menu-bar item even when every standalone module is off.
+        if Store.shared.bool(key: "CombinedModules", defaultValue: false) { return }
         let hasActive = modules.contains(where: { $0.enabled != false && $0.available != false && !$0.menuBar.widgets.filter({ $0.isActive }).isEmpty })
         if hasActive { return }
         self.ensureSettingsWindow().setIsVisible(true)

@@ -113,7 +113,7 @@ public class Bluetooth: Module {
     }
     
     private func batteryCallback(_ raw: [BLEDevice]?) {
-        guard let value = raw, self.enabled else { return }
+        guard let value = raw, self.collecting else { return }
         
         let active = value.filter{ $0.isPaired || ($0.isConnected && !$0.batteryLevel.isEmpty) }
         DispatchQueue.main.async(execute: {

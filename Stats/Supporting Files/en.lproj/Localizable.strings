@@ -167,8 +167,17 @@
 "Resume the Stats" = "Resume the Stats";
 "Combined modules" = "Combined modules";
 "Show icon instead of widgets" = "Show icon instead of widgets";
+"Show network speed" = "Show network speed in menu bar";
 "Combined details" = "Combined details";
 "Spacing" = "Spacing";
+"Combined" = "Combined";
+"Components" = "Components";
+"Appearance" = "Appearance";
+"Enable this module first" = "Enable this module first";
+"Module is disabled" = "Module is disabled";
+"Open Combined settings" = "Open Combined settings";
+"Combined page subtitle" = "Combined runs independently from the other modules. Tick the components to display, drag rows to reorder, and click the menu bar item to open the overview; the corresponding module tabs do not need to be enabled.";
+"Enable %@ in its own tab to show it in the combined item" = "Enable %@ in its own tab to show it in the combined item";
 "Choose file" = "Choose file";
 "Stress tests" = "Stress tests";
 "Keep the menubar items position" = "Keep the menubar items position";

@@ -26,6 +26,9 @@ public class Portal: PortalWrapper {
     
     public override func load() {
         self.container.stackView.spacing = 0
+        // Rows become narrower when the vertical scroller is present. Keep them leading-aligned
+        // instead of centered so sensor names share the same left edge as the portal header.
+        self.container.stackView.alignment = .leading
         self.body.addArrangedSubview(self.container)
     }
     
@@ -49,6 +52,9 @@ public class Portal: PortalWrapper {
             let v = ValueSensorView(s, width: width, callback: {})
             v.update(self.formattedValue(s))
             self.container.stackView.addArrangedSubview(v)
+            // The row is narrower than the document view when the scroller is visible. Pin it
+            // explicitly to the leading edge so AppKit cannot center it and create a false indent.
+            v.leadingAnchor.constraint(equalTo: self.container.stackView.leadingAnchor).isActive = true
             self.list[s.key] = v
         }
     }

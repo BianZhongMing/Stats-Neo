@@ -419,12 +419,7 @@ public class MenuBar {
         self.queue = DispatchQueue(label: "eu.exelban.Stats.MenuBar.\(moduleName)")
         self.oneView = Store.shared.bool(key: "\(self.moduleName)_oneView", defaultValue: self.oneView)
         self.view.identifier = NSUserInterfaceItemIdentifier(rawValue: moduleName)
-        
-        if self.combinedModules {
-            self.oneView = true
-        } else {
-            self.setupMenuBarItem(self.oneView)
-        }
+        self.setupMenuBarItem(self.oneView)
         
         NotificationCenter.default.addObserver(self, selector: #selector(listenForOneView), name: .toggleOneView, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(listenForWidgetRearrange), name: .widgetRearrange, object: nil)
@@ -466,7 +461,7 @@ public class MenuBar {
     }
     
     public func enable() {
-        if self.oneView && !self.combinedModules {
+        if self.oneView {
             self.setupMenuBarItem(true)
         }
         self.active = true
@@ -535,26 +530,22 @@ public class MenuBar {
     }
     
     @objc private func listenForOneView(_ notification: Notification) {
-        if notification.userInfo?["module"] as? String == nil {
-            self.toggleOneView()
-        } else if let name = notification.userInfo?["module"] as? String, name == self.moduleName, self.active {
-            self.toggleOneView()
-        }
+        // Combined is an additional independent status item. A global Combined toggle must not
+        // merge, hide, or otherwise change the standalone modules' menu-bar presentation.
+        guard let name = notification.userInfo?["module"] as? String,
+              name == self.moduleName,
+              self.active else { return }
+        self.toggleOneView()
     }
-    
+
     private func toggleOneView() {
         self.activeWidgets.forEach { (w: SWidget) in
             w.disable()
         }
-        
-        if self.combinedModules {
-            self.oneView = true
-            self.setupMenuBarItem(false)
-        } else {
-            self.oneView = Store.shared.bool(key: "\(self.moduleName)_oneView", defaultValue: false)
-            self.setupMenuBarItem(self.oneView && self.active)
-        }
-        
+
+        self.oneView = Store.shared.bool(key: "\(self.moduleName)_oneView", defaultValue: false)
+        self.setupMenuBarItem(self.oneView && self.active)
+
         guard self.active else { return }
 
         self.activeWidgets.forEach { (w: SWidget) in

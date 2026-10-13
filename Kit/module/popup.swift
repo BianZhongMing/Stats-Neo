@@ -398,7 +398,12 @@ internal class HeaderView: NSStackView {
         title.backgroundColor = .clear
         title.canDrawSubviewsIntoLayer = true
         title.alignment = .center
-        title.font = NSFont.systemFont(ofSize: 16, weight: .regular)
+        // The combined panel uses the app name as its title, so it is rendered more compact and less prominent.
+        if self.module == .combined {
+            title.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
+        } else {
+            title.font = NSFont.systemFont(ofSize: 16, weight: .regular)
+        }
         title.stringValue = ""
         self.titleView = title
         

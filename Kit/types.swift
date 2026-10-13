@@ -311,6 +311,7 @@ public extension Notification.Name {
     static let toggleOneView = Notification.Name("toggleOneView")
     static let widgetRearrange = Notification.Name("widgetRearrange")
     static let moduleRearrange = Notification.Name("moduleRearrange")
+    static let combinedNetworkSpeed = Notification.Name("combinedNetworkSpeed")
     static let pause = Notification.Name("pause")
     static let toggleFanControl = Notification.Name("toggleFanControl")
     static let combinedModulesPopup = Notification.Name("combinedModulesPopup")

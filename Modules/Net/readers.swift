@@ -214,6 +214,7 @@ internal class UsageReader: Reader<Network_Usage>, CWEventDelegate, CLLocationMa
     }
     
     public override func setup() {
+        self.defaultInterval = 3
         self.reachability.reachable = { [weak self] in
             guard let self else { return }
             if self.active {
@@ -301,29 +302,38 @@ internal class UsageReader: Reader<Network_Usage>, CWEventDelegate, CLLocationMa
         }
         
         // allows to reset the value to 0 when first read
+        let interval = self.interval ?? 3.0
+        let divisor = max(interval, 1.0)
+
+        var uploadDelta: Int64 = 0
+        var downloadDelta: Int64 = 0
+
         if self.usage.bandwidth.upload != 0 {
-            self.usage.bandwidth.upload = current.upload - self.usage.bandwidth.upload
+            uploadDelta = current.upload - self.usage.bandwidth.upload
         }
         if self.usage.bandwidth.download != 0 {
-            self.usage.bandwidth.download = current.download - self.usage.bandwidth.download
+            downloadDelta = current.download - self.usage.bandwidth.download
         }
-        
-        self.usage.bandwidth.upload = max(self.usage.bandwidth.upload, 0) // prevent negative upload value
-        self.usage.bandwidth.download = max(self.usage.bandwidth.download, 0) // prevent negative download value
-        
+
+        uploadDelta = max(uploadDelta, 0)
+        downloadDelta = max(downloadDelta, 0)
+
         // drop one-shot counter jumps (e.g. on reconnect) that exceed what the link can physically deliver
-        let interval = self.interval ?? 1
         let maxDelta: Int64 = {
             if let rate = self.usage.interface?.transmitRate, rate > 0 {
                 return Int64(rate * 1_000_000 / 8 * 1.5 * interval) // 50% headroom over negotiated link rate
             }
             return Int64(12_500_000_000 * interval) // 100 Gbps fallback when link rate is unknown
         }()
-        if self.usage.bandwidth.upload > maxDelta { self.usage.bandwidth.upload = 0 }
-        if self.usage.bandwidth.download > maxDelta { self.usage.bandwidth.download = 0 }
-        
-        self.usage.total.upload += self.usage.bandwidth.upload
-        self.usage.total.download += self.usage.bandwidth.download
+        if uploadDelta > maxDelta { uploadDelta = 0 }
+        if downloadDelta > maxDelta { downloadDelta = 0 }
+
+        self.usage.total.upload += uploadDelta
+        self.usage.total.download += downloadDelta
+
+        // Convert the 3-second sample delta to a per-second rate for display.
+        self.usage.bandwidth.upload = Int64(Double(uploadDelta) / divisor)
+        self.usage.bandwidth.download = Int64(Double(downloadDelta) / divisor)
         
         self.usage.status = self.reachability.isReachable
         

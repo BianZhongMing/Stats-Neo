@@ -306,7 +306,7 @@ public class Disk: Module {
     }
     
     private func capacityCallback(_ value: Disks) {
-        guard self.enabled else { return }
+        guard self.collecting else { return }
         
         DispatchQueue.main.async(execute: {
             self.popupView.capacityCallback(value)
@@ -376,7 +376,7 @@ public class Disk: Module {
     }
     
     private func activityCallback(_ value: Disks) {
-        guard self.enabled else { return }
+        guard self.collecting else { return }
         
         DispatchQueue.main.async(execute: {
             self.popupView.activityCallback(value)
@@ -404,7 +404,7 @@ public class Disk: Module {
     }
     
     private func SMARTCallback(_ value: Disks) {
-        guard self.enabled else { return }
+        guard self.collecting else { return }
         
         DispatchQueue.main.async(execute: {
             self.popupView.smartCallback(value)

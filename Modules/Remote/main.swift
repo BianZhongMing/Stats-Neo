@@ -218,7 +218,7 @@ public class Remote: Module {
     }
     
     private func callback(_ snapshot: RemoteSnapshot?) {
-        guard let snapshot, self.enabled else { return }
+        guard let snapshot, self.collecting else { return }
         
         DispatchQueue.main.async(execute: {
             self.popupView.callback(snapshot)

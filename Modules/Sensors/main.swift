@@ -100,7 +100,7 @@ public class Sensors: Module {
     }
     
     private func usageCallback(_ raw: Sensors_List?) {
-        guard let value = raw, self.enabled else { return }
+        guard let value = raw, self.collecting else { return }
         
         self.popupView.usageCallback(value.sensors)
         self.portalView.usageCallback(value.sensors)

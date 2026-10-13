@@ -146,7 +146,7 @@ public class RAM: Module {
     }
     
     private func loadCallback(_ raw: RAM_Usage?) {
-        guard let value = raw, self.enabled else { return }
+        guard let value = raw, self.collecting else { return }
         
         self.popupView.loadCallback(value)
         self.portalView.callback(value)

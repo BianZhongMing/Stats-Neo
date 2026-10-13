@@ -193,7 +193,7 @@ public class CPU: Module {
     }
     
     private func loadCallback(_ raw: CPU_Load?) {
-        guard let value = raw, self.enabled else { return }
+        guard let value = raw, self.collecting else { return }
         
         self.popupView.loadCallback(value)
         self.portalView.callback(value)

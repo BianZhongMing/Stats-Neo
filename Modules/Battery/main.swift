@@ -115,7 +115,7 @@ public class Battery: Module {
     }
     
     private func usageCallback(_ raw: Battery_Usage?) {
-        guard let value = raw, self.enabled else { return }
+        guard let value = raw, self.collecting else { return }
         
         self.popupView.usageCallback(value)
         self.portalView.loadCallback(value)

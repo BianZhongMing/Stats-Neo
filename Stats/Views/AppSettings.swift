@@ -130,32 +130,7 @@ class ApplicationSettings: NSStackView {
             ))
         ]))
         
-        self.combinedModulesView = PreferencesSection([
-            PreferencesRow(localizedString("Combined modules"), component: switchView(
-                action: #selector(self.toggleCombinedModules),
-                state: self.combinedModulesState
-            )),
-            PreferencesRow(localizedString("Show icon instead of widgets"), component: switchView(
-                action: #selector(self.toggleCombinedModulesIcon),
-                state: self.combinedModulesIcon
-            )),
-            PreferencesRow(component: self.moduleSelector),
-            PreferencesRow(localizedString("Spacing"), component: selectView(
-                action: #selector(self.toggleCombinedModulesSpacing),
-                items: CombinedModulesSpacings,
-                selected: self.combinedModulesSpacing
-            )),
-            PreferencesRow(localizedString("Separator"), component: switchView(
-                action: #selector(self.toggleCombinedModulesSeparator),
-                state: self.combinedModulesSeparator
-            )),
-            PreferencesRow(localizedString("Combined details"), component: switchView(
-                action: #selector(self.toggleCombinedModulesPopup),
-                state: self.combinedModulesPopup
-            ))
-        ])
-        scrollView.stackView.addArrangedSubview(self.combinedModulesView!)
-        self.updateCombinedModulesSettings()
+        // Combined modules were moved to the dedicated "Combined" page in the sidebar.
         
         self.remoteControlBtn = switchView(
             action: #selector(self.toggleRemoteControlState),

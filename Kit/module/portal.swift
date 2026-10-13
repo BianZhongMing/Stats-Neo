@@ -25,8 +25,8 @@ open class PortalWrapper: NSStackView, Portal_p {
     
     public init(_ type: ModuleType, height: CGFloat = 100) {
         self.name = type.stringValue
-        self.height = 20 + Constants.Popup.spacing + height
-        
+        self.height = 18 + Constants.Popup.spacing + height
+
         self.header = PortalHeader(type.stringValue)
         self.body = {
             let view = NSStackView()
@@ -80,22 +80,22 @@ public class PortalHeader: NSStackView {
         self.name = name
         
         super.init(frame: NSRect.zero)
-        self.heightAnchor.constraint(equalToConstant: 20).isActive = true
-        
+        self.heightAnchor.constraint(equalToConstant: 18).isActive = true
+
         let title = NSTextField()
         title.isEditable = false
         title.isSelectable = false
         title.isBezeled = false
         title.wantsLayer = true
-        title.textColor = .textColor
+        title.textColor = .secondaryLabelColor
         title.backgroundColor = .clear
         title.canDrawSubviewsIntoLayer = true
         title.alignment = .natural
-        title.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        title.font = NSFont.systemFont(ofSize: 11, weight: .regular)
         title.stringValue = localizedString(name)
-        
+
         let settings = NSButton()
-        settings.heightAnchor.constraint(equalToConstant: 18).isActive = true
+        settings.heightAnchor.constraint(equalToConstant: 16).isActive = true
         settings.bezelStyle = .regularSquare
         settings.translatesAutoresizingMaskIntoConstraints = false
         settings.imageScaling = .scaleProportionallyDown

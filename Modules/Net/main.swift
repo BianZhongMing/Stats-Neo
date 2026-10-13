@@ -224,7 +224,7 @@ public class Network: Module {
             }
         }
         self.settingsView.setInterval = { [weak self] value in
-            self?.connectivityReader?.setInterval(value)
+            self?.usageReader?.setInterval(value)
         }
         self.settingsView.publicIPRefreshIntervalCallback = { [weak self] in
             self?.setIPUpdater()
@@ -247,7 +247,7 @@ public class Network: Module {
     }
     
     private func usageCallback(_ raw: Network_Usage?) {
-        guard let value = raw, self.enabled else { return }
+        guard let value = raw, self.collecting else { return }
         
         self.popupView.usageCallback(value)
         self.portalView.usageCallback(value)
@@ -265,6 +265,12 @@ public class Network: Module {
                 download = value.bandwidth.download
             }
         }
+
+        NotificationCenter.default.post(
+            name: .combinedNetworkSpeed,
+            object: nil,
+            userInfo: ["download": download, "upload": upload]
+        )
         
         self.menuBar.widgets.filter{ $0.isActive }.forEach { (w: SWidget) in
             switch w.item {
@@ -352,7 +358,7 @@ public class Network: Module {
     }
     
     private func connectivityCallback(_ raw: Network_Connectivity?) {
-        guard let value = raw, self.enabled else { return }
+        guard let value = raw, self.collecting else { return }
         
         self.popupView.connectivityCallback(value)
         self.notificationsView.connectivityCallback(value)
@@ -383,7 +389,7 @@ public class Network: Module {
         
         self.ipUpdater.repeats = true
         self.ipUpdater.schedule { (completion: @escaping NSBackgroundActivityScheduler.CompletionHandler) in
-            guard self.enabled && self.isAvailable() else { return }
+            guard self.collecting && self.isAvailable() else { return }
             debug("going to automatically refresh IP address...")
             NotificationCenter.default.post(name: .refreshPublicIP, object: nil, userInfo: nil)
             completion(NSBackgroundActivityScheduler.Result.finished)

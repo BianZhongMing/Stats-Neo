@@ -334,6 +334,8 @@ extension AppDelegate {
             } else if !self.pauseState && !m.enabled && Store.shared.bool(key: "\(m.config.name)_state", defaultValue: m.config.defaultState) {
                 m.enable()
             }
+            // Also suspend/resume modules that are active only as Combined components.
+            m.syncCombinedState()
         }
         self.icon()
     }

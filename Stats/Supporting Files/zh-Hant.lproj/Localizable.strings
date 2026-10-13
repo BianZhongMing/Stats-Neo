@@ -167,8 +167,17 @@
 "Resume the Stats" = "恢復Stats";
 "Combined modules" = "合併模組";
 "Show icon instead of widgets" = "顯示圖示而非小工具";
+"Show network speed" = "在選單列顯示網路速度";
 "Combined details" = "合併詳細資訊";
 "Spacing" = "間距";
+"Combined" = "合併";
+"Components" = "元件";
+"Appearance" = "外觀";
+"Enable this module first" = "請先啟用此模組";
+"Module is disabled" = "模組未啟用";
+"Open Combined settings" = "打開合併設定";
+"Combined page subtitle" = "合併模組獨立於其他模組運作。勾選要顯示的元件、拖曳列可調整順序，點擊選單列項目即可檢視總覽；無需在其他設定頁中啟用對應模組。";
+"Enable %@ in its own tab to show it in the combined item" = "請在「%@」模組的設定頁中啟用它，啟用後才會顯示在合併面板中";
 "Choose file" = "選擇檔案";
 "Stress tests" = "壓力測試";
 "Keep the menubar items position" = "保持選單列項目的位置"; // qwen3.8:27b

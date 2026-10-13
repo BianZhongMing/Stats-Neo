@@ -88,6 +88,30 @@ open class Module {
         get { Store.shared.int(key: "\(self.name)_position", defaultValue: 0) }
         set { Store.shared.set(key: "\(self.name)_position", value: newValue) }
     }
+    public var combinedIncluded: Bool {
+        get { Store.shared.bool(key: "\(self.name)_combinedIncluded", defaultValue: true) }
+        set { Store.shared.set(key: "\(self.name)_combinedIncluded", value: newValue) }
+    }
+    /// The module can collect data either for its own standalone item or exclusively for Combined.
+    /// Combined collection never changes `<Module>_state` and never enables the module's own menu-bar item.
+    public var combinedPanelActive: Bool {
+        self.available &&
+        !Store.shared.bool(key: "pause", defaultValue: false) &&
+        Store.shared.bool(key: "CombinedModules", defaultValue: false) &&
+        self.combinedIncluded &&
+        self.portal != nil
+    }
+    public var combinedActive: Bool {
+        let usedByMenuBarSpeed = self.name == "Network" &&
+            Store.shared.bool(key: "CombinedModules", defaultValue: false) &&
+            Store.shared.bool(key: "CombinedModules_network", defaultValue: false)
+        return self.combinedPanelActive || (
+            self.available &&
+            !Store.shared.bool(key: "pause", defaultValue: false) &&
+            usedByMenuBarSpeed
+        )
+    }
+    public var collecting: Bool { self.enabled || self.combinedActive }
     public var userDefaults: UserDefaults? = UserDefaults(suiteName: "\(Bundle.main.object(forInfoDictionaryKey: "TeamId") as! String).eu.exelban.Stats.widgets")
     
     public var popupKeyboardShortcut: [UInt16] { self.popupView?.keyboardShortcut ?? [] }
@@ -177,9 +201,11 @@ open class Module {
     
     // load function which call when app start
     public func mount() {
-        guard self.enabled else { return }
+        guard self.collecting else { return }
         self.startReaders()
-        self.menuBar.enable()
+        if self.enabled {
+            self.menuBar.enable()
+        }
     }
     
     // disable module
@@ -232,11 +258,31 @@ open class Module {
         self.menuBar.disable()
         self.window?.setState(self.enabled)
         self.popup?.setIsVisible(false)
+        // Keep readers alive when this module is still selected by Combined.
+        // The standalone module remains disabled and its menu-bar item stays hidden.
+        if self.combinedActive {
+            self.startReaders()
+        }
         debug("Module disabled", log: self.log)
     }
     
     public func setReaders(_ list: [Reader_p?]) {
         self.readers = list.filter({ $0 != nil }).map({ $0! as Reader_p })
+    }
+
+    /// Synchronize reader lifetime with the independent Combined selection.
+    /// This intentionally does not touch `enabled`, persisted module state, module settings UI,
+    /// or the module's own menu-bar item.
+    public func syncCombinedState() {
+        guard self.available else { return }
+        if self.collecting {
+            self.startReaders()
+        } else {
+            self.readers.forEach {
+                $0.lock()
+                $0.stop()
+            }
+        }
     }
     
     // determine if module is available (can be overrided in module)
@@ -271,7 +317,10 @@ open class Module {
     }
     
     private func readerHasVisibleConsumer(_ reader: Reader_p) -> Bool {
-        // Regular readers can enter sleep mode while either view is already open.
+        // Combined is a first-class consumer: selected modules keep their portal data fresh
+        // even when their standalone module/tab is disabled.
+        if self.combinedActive { return true }
+        // Regular readers can enter sleep mode while either standalone view is already open.
         let shared = reader.sleep || (!reader.popup && !reader.preview)
         return self.enabled && (
             (self.popupVisible && (reader.popup || shared)) ||

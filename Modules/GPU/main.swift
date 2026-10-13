@@ -165,7 +165,7 @@ public class GPU: Module {
     }
     
     private func infoCallback(_ raw: GPUs?) {
-        guard raw != nil && !raw!.list.isEmpty, let value = raw, self.enabled else { return }
+        guard raw != nil && !raw!.list.isEmpty, let value = raw, self.collecting else { return }
         
         self.settingsView.setList(value)
         
