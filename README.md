@@ -1,24 +1,84 @@
 # Stats
 
-<a href="https://github.com/exelban/stats/releases"><p align="center"><img src="https://github.com/exelban/stats/raw/master/Stats/Supporting%20Files/Assets.xcassets/AppIcon.appiconset/icon_256x256.png" width="120"></p></a>
+<a href="https://github.com/BianZhongMing/stats/releases"><p align="center"><img src="https://github.com/exelban/stats/raw/master/Stats/Supporting%20Files/Assets.xcassets/AppIcon.appiconset/icon_256x256.png" width="120"></p></a>
 
-[![Stats](https://cdn.mac-stats.com/assets/images/menus.png)](https://github.com/exelban/stats/releases)
-[![Stats](https://cdn.mac-stats.com/assets/images/popups.png)](https://github.com/exelban/stats/releases)
+[![Stats](https://cdn.mac-stats.com/assets/images/menus.png)](https://github.com/BianZhongMing/stats/releases)
+[![Stats](https://cdn.mac-stats.com/assets/images/popups.png)](https://github.com/BianZhongMing/stats/releases)
 
 macOS system monitor in your menu bar
 
-## Installation
-### Manual
-You can download the latest version [here](https://github.com/exelban/stats/releases/latest/download/Stats.dmg).
-This will download a file called `Stats.dmg`. Open it and move the app to the application folder.
+> [!IMPORTANT]
+> 这是基于 [exelban/stats](https://github.com/exelban/stats) `3.0.21` 的非官方二次开发版本，重点增强网速状态栏显示和多模块聚合能力。上游项目及原作者不负责维护本 Fork。页面顶部截图来自上游原版，二开差异以本文说明和本 Fork Release 为准。
 
-### Homebrew
+## Combined Edition（二开说明）
+
+### 相较原版的功能变化
+
+| 功能 | 原版行为 | 本 Fork 调整 |
+| --- | --- | --- |
+| 网速采样 | 网络读取器使用原有默认周期 | 默认每 **3 秒**采样一次，并将区间流量差值除以实际采样周期，状态栏仍显示准确的每秒速率 |
+| 网速状态栏 | 原有 Speed Widget 默认样式 | 默认使用上下行箭头；采用等宽数字、常规字重、独立上下行颜色，并调整箭头尺寸、间距和动态宽度，使显示更接近 iStat Menus |
+| 合并模块入口 | 位于应用通用设置中，与普通模块启用状态和 one-view 行为耦合 | 在设置侧边栏增加独立的 **Combined / 合并**页面，使用与普通模块一致的右上角启用开关 |
+| 合并组件管理 | 聚合已启用的普通模块 | 可直接在合并页面勾选组件并拖拽排序；选择结果独立保存，不会修改普通模块的开关 |
+| 合并状态栏 | 复用普通模块的菜单栏 View，可能影响其显示方式 | 合并项是独立状态栏项目，可选择显示单图标或完整上下行网速；普通 CPU、网络等状态栏项目可同时存在 |
+| 数据采集 | 普通模块关闭后对应读取器停止 | 被合并页选中的组件可独立保持读取器运行，只更新聚合面板，不会偷偷启用普通模块或其状态栏项目 |
+| 聚合面板 | 标题和组件布局沿用原聚合实现 | 标题改为 `Stats`，字体和间距更紧凑；组件按选择顺序展示，传感器标题、列表和滚动区域统一左对齐 |
+| 合并选项 | 包含间距、分隔符、合并详情等多组关联设置 | 移除意义有限且容易造成状态混乱的旧选项，保留启用开关、状态栏网速模式、组件选择和排序 |
+
+### 使用方式
+
+1. 打开 **Stats 设置 → Combined（合并）**。
+2. 使用窗口右上角开关单独启用合并模块。
+3. 在组件列表中勾选需要聚合展示的模块；拖动每行右侧手柄调整顺序。
+4. 开启“显示网速”后，合并状态栏项显示完整的上传/下载箭头和数值；关闭后显示 Stats 小图标。
+5. 点击合并状态栏项打开聚合面板。普通模块可独立开启或关闭，也可与合并项同时显示在状态栏。
+
+### 关键代码调整
+
+| 代码位置 | 调整说明 |
+| --- | --- |
+| `Stats/Views/CombinedView.swift` | 重构合并状态栏与聚合弹窗；新增独立 `CombinedSettings`、组件勾选列表、拖拽排序，以及合并专用 `SpeedWidget` |
+| `Stats/Views/Settings.swift` | 在侧边栏加入 Combined 页面，并复用设置窗口右上角通用开关控制合并模块 |
+| `Stats/Views/AppSettings.swift` | 移除通用设置页中旧的合并配置，避免出现两套入口和状态来源 |
+| `Kit/module/module.swift` | 增加 `combinedIncluded`、`combinedPanelActive`、`combinedActive`、`collecting` 和 `syncCombinedState()`，将普通模块启用状态与合并采集生命周期解耦 |
+| `Kit/module/widget.swift` | 合并开关不再强制普通模块进入 one-view，也不再隐藏、搬移或重建普通模块的状态栏项目 |
+| `Modules/Net/readers.swift` | 默认采样周期改为 3 秒；按真实周期换算每秒速率，同时保留累计流量和异常跳变保护 |
+| `Modules/Net/main.swift` | 网络回调在普通模块关闭但被合并使用时仍可更新，并通过 `combinedNetworkSpeed` 通知独立刷新合并网速组件 |
+| `Modules/Net/settings.swift` | 增加网络更新间隔设置，并确保修改的是 Usage Reader 的采样周期 |
+| `Kit/Widgets/Speed.swift` | 重绘上下行线性箭头，使用等宽数字并重新计算两行布局、颜色和动态宽度 |
+| `Kit/module/portal.swift`、`Modules/Sensors/portal.swift` | 压缩 Portal 标题样式，显式约束全宽与 leading 对齐，修复传感器滚动条出现后的错误缩进 |
+| `Stats/AppDelegate.swift`、`Stats/helpers.swift` | 将合并项视为独立活动状态栏项目，并在全局暂停/恢复时同步合并专用读取器 |
+| `Stats/Supporting Files/{en,zh-Hans,zh-Hant}.lproj/Localizable.strings` | 补充合并页面、组件列表和网速模式的英文、简体中文与繁体中文文案 |
+
+本次核心二开提交共调整 **26 个文件**（`686 insertions / 267 deletions`）。基线为上游提交 `88d5359`，核心功能提交为 [`81d5162`](https://github.com/BianZhongMing/stats/commit/81d516200409e05e402c9e7513823246396782db)。
+
+### 构建与发布信息
+
+- 应用版本：`3.0.21`（build `849`）
+- 架构：Universal（`x86_64` + `arm64`）
+- 签名：ad-hoc；不是 Apple 公证版本，首次运行时可能需要在“系统设置 → 隐私与安全性”中手动允许
+- 已验证：Release 构建、Universal 架构、`codesign --verify --deep --strict`、DMG 校验和、ZIP 完整性
+- 当前 Release：[`v3.0.21-combined.1`](https://github.com/BianZhongMing/stats/releases/tag/v3.0.21-combined.1)
+
+## Installation
+### Manual（本 Fork）
+推荐从本 Fork 的最新 Release 下载：
+
+- [Stats.dmg](https://github.com/BianZhongMing/stats/releases/latest/download/Stats.dmg)
+- [Stats.app.zip](https://github.com/BianZhongMing/stats/releases/latest/download/Stats.app.zip)
+
+打开 `Stats.dmg` 后将应用拖入“应用程序”目录；或者解压 `Stats.app.zip` 后手动移动 `Stats.app`。
+
+> [!NOTE]
+> 以下 Homebrew 和 Headless 安装方式仍由上游项目维护，安装的是 `exelban/stats` 原版，不包含本 Fork 的合并模块和状态栏网速调整。
+
+### Homebrew（上游原版）
 To install it using Homebrew, open the Terminal app and type:
 ```bash
 brew install stats
 ```
 
-### Headless (SSH)
+### Headless (SSH，上游原版)
 To install Stats remotely over SSH and set it up as a remote monitoring agent, run:
 ```bash
 curl -fsSL https://cdn.mac-stats.com/install.sh | bash
@@ -52,6 +112,8 @@ Stats is an application that allows you to monitor your macOS system.
  - Sensors information (Temperature/Voltage/Power)
  - Bluetooth devices
  - Multiple time zone clock
+ - Independent Combined panel with selectable and reorderable components
+ - iStat-style upload/download speed display with a default 3-second refresh interval
 
 ## FAQs
 
