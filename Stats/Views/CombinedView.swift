@@ -388,7 +388,7 @@ private class CombinedModuleListView: NSStackView {
 
     override func mouseDown(with event: NSEvent) {
         let location = self.convert(event.locationInWindow, from: nil)
-        guard let target = self.views.first(where: { $0 is CombinedModuleRow && $0.hitTest(location) != nil }) as? CombinedModuleRow else {
+        guard let target = self.arrangedSubviews.first(where: { $0 is CombinedModuleRow && $0.hitTest(location) != nil }) as? CombinedModuleRow else {
             super.mouseDown(with: event)
             return
         }
@@ -435,18 +435,24 @@ private class CombinedModuleListView: NSStackView {
                 copy.frame.origin.y = originY + diff
                 CATransaction.commit()
 
-                let reordered = self.views.map {
+                let reordered = self.arrangedSubviews.map {
                     (view: $0, y: $0 !== row ? $0.frame.midY : originCenter + diff)
                 }.sorted { $0.y > $1.y }.map { $0.view }
 
                 guard let nextIndex = reordered.firstIndex(of: row),
-                      let prevIndex = self.views.firstIndex(of: row) else {
+                      let prevIndex = self.arrangedSubviews.firstIndex(of: row) else {
                     stop.pointee = true
                     return
                 }
                 if nextIndex != prevIndex {
                     newIdx = nextIndex
-                    row.removeFromSuperviewWithoutNeedingDisplay()
+                    // Reorder only inside NSStackView's arranged-subview list. Removing the row
+                    // from its superview deactivates `row.widthAnchor == self.widthAnchor`; after
+                    // reinsertion AppKit then sizes the row to its intrinsic content width and
+                    // centers it, which makes dragged rows visibly collapse toward the middle.
+                    // Keeping the row in the view hierarchy preserves the full-width constraint
+                    // and the shared checkbox / icon / name / handle column grid.
+                    self.removeArrangedSubview(row)
                     self.insertArrangedSubview(row, at: newIdx)
                     self.layoutSubtreeIfNeeded()
                     self.persistOrder()
@@ -455,6 +461,13 @@ private class CombinedModuleListView: NSStackView {
                 if newIdx != -1 {
                     self.persistOrder()
                     NotificationCenter.default.post(name: .moduleRearrange, object: nil)
+                    // Rebuild rows on the next main-loop turn after AppKit finishes the drag
+                    // transaction. This guarantees that the released row is recreated with the
+                    // normal full-width constraint and that the visible order comes from the
+                    // positions just persisted above.
+                    DispatchQueue.main.async { [weak self] in
+                        self?.reload()
+                    }
                 }
                 row.mouseUp(with: event)
                 stop.pointee = true
@@ -463,7 +476,10 @@ private class CombinedModuleListView: NSStackView {
     }
 
     private func persistOrder() {
-        for (i, v) in self.views.compactMap({ $0 as? CombinedModuleRow }).enumerated() {
+        // NSStackView may keep its ordinary `subviews` array in a different order after
+        // remove/insert operations. The visual order is authoritative and lives in
+        // `arrangedSubviews`, so persist positions from that list.
+        for (i, v) in self.arrangedSubviews.compactMap({ $0 as? CombinedModuleRow }).enumerated() {
             v.module.combinedPosition = i
         }
     }

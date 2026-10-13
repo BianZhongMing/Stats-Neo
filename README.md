@@ -19,7 +19,7 @@ macOS system monitor in your menu bar
 | 网速采样 | 网络读取器使用原有默认周期 | 默认每 **3 秒**采样一次，并将区间流量差值除以实际采样周期，状态栏仍显示准确的每秒速率 |
 | 网速状态栏 | 原有 Speed Widget 默认样式 | 默认使用上下行箭头；采用等宽数字、常规字重、独立上下行颜色，并调整箭头尺寸、间距和动态宽度，使显示更接近 iStat Menus |
 | 合并模块入口 | 位于应用通用设置中，与普通模块启用状态和 one-view 行为耦合 | 在设置侧边栏增加独立的 **Combined / 合并**页面，使用与普通模块一致的右上角启用开关 |
-| 合并组件管理 | 聚合已启用的普通模块 | 可直接在合并页面勾选组件并拖拽排序；选择结果独立保存，不会修改普通模块的开关 |
+| 合并组件管理 | 聚合已启用的普通模块 | 可直接在合并页面勾选组件并拖拽排序；选择结果独立保存，不会修改普通模块的开关；拖动释放后按持久化顺序安全重建全宽行，避免列错位或行向中间收缩 |
 | 合并状态栏 | 复用普通模块的菜单栏 View，可能影响其显示方式 | 合并项是独立状态栏项目，可选择显示单图标或完整上下行网速；普通 CPU、网络等状态栏项目可同时存在 |
 | 数据采集 | 普通模块关闭后对应读取器停止 | 被合并页选中的组件可独立保持读取器运行，只更新聚合面板，不会偷偷启用普通模块或其状态栏项目 |
 | 聚合面板 | 标题和组件布局沿用原聚合实现 | 标题改为 `Stats`，字体和间距更紧凑；组件按选择顺序展示，传感器标题、列表和滚动区域统一左对齐 |
@@ -58,7 +58,7 @@ macOS system monitor in your menu bar
 - 架构：Universal（`x86_64` + `arm64`）
 - 签名：ad-hoc；不是 Apple 公证版本，首次运行时可能需要在“系统设置 → 隐私与安全性”中手动允许
 - 已验证：Release 构建、Universal 架构、`codesign --verify --deep --strict`、DMG 校验和、ZIP 完整性
-- 当前 Release：[`v3.0.21-combined.1`](https://github.com/BianZhongMing/stats/releases/tag/v3.0.21-combined.1)
+- 当前 Release：[`v3.0.21-combined.2`](https://github.com/BianZhongMing/stats/releases/tag/v3.0.21-combined.2)
 
 ## Installation
 ### Manual（本 Fork）
