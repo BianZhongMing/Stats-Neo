@@ -33,9 +33,6 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
 
-      - name: Generate changelog
-        run: python3 Kit/scripts/changelog.py > CHANGELOG.md
-
       - name: Import signing certificate
         if: env.HAS_SIGNING_CERT == 'true'
         uses: Apple-Actions/import-codesign-certs@v7
@@ -120,4 +117,4 @@ jobs:
           files: |
             build/Stats.dmg
             build/Stats.app.zip
-          body: file(./CHANGELOG.md)
+          body_path: ./RELEASE_NOTES.md

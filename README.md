@@ -23,6 +23,7 @@ macOS system monitor in your menu bar
 | 合并状态栏 | 复用普通模块的菜单栏 View，可能影响其显示方式 | 合并项是独立状态栏项目，可选择显示单图标或完整上下行网速；普通 CPU、网络等状态栏项目可同时存在 |
 | 数据采集 | 普通模块关闭后对应读取器停止 | 读取结果只投递给当前真实消费者；纯 Combined 网速模式不启动 `ps`、`top`、`nettop`、CoreWLAN/定位详情资源；CPU、内存、磁盘、电池等面板数据只在聚合弹窗打开时采集 |
 | 能耗策略 | 各 Reader 独立定时且始终按固定周期运行 | 提供实时、平衡、省电三档；同频 Reader 共享定时节拍，平衡模式下空闲网速降至 10 秒，省电或系统低电量模式可降至 30 秒，进程榜默认限制为 3～10 秒且禁止重叠采样 |
+| 合并电池模块 | 电量、状态和健康度以多行文字展示，健康度可能回退到 Nominal 容量 | 采用 A1 图标：电池内显示当前电量，右上角用闪电、插头、暂停、勾或低电量感叹号表达状态；文字区仅保留充满还需、循环次数及最大容量比例和 mAh，并优先采用系统的 Full Charge Capacity 口径 |
 | 聚合面板 | 标题和组件布局沿用原聚合实现 | 标题改为 `Stats`，字体和间距更紧凑；组件按选择顺序展示，传感器标题、列表和滚动区域统一左对齐 |
 | 合并选项 | 包含间距、分隔符、合并详情等多组关联设置 | 移除意义有限且容易造成状态混乱的旧选项，保留启用开关、状态栏网速模式、组件选择和排序 |
 
@@ -48,6 +49,7 @@ macOS system monitor in your menu bar
 | `Modules/Net/readers.swift` | 拆分快速字节计数和慢速接口/Wi-Fi/IP 详情路径；使用单调时钟换算速率，纯 Combined 网速强制避开 `nettop`，并按流量和能耗模式自适应降频 |
 | `Modules/Net/main.swift` | 网络结果只发送给可见 Popup/Portal/Preview、独立菜单栏或 Combined 网速消费者，隐藏界面不再维护高频图表历史 |
 | `Modules/Net/settings.swift` | 增加网络更新间隔设置，并确保修改的是 Usage Reader 的采样周期 |
+| `Modules/Battery/popup.swift`、`Modules/Battery/portal.swift`、`Modules/Battery/readers.swift` | Combined 电池模块采用 A1 百分比内嵌与状态角标；展示充满还需、循环次数和最大容量，并修正 Apple Silicon 容量字段优先级 |
 | `Kit/Widgets/Speed.swift` | 重绘上下行线性箭头，使用等宽数字并重新计算两行布局、颜色和动态宽度 |
 | `Kit/module/portal.swift`、`Modules/Sensors/portal.swift` | 压缩 Portal 标题样式，显式约束全宽与 leading 对齐，修复传感器滚动条出现后的错误缩进 |
 | `Stats/AppDelegate.swift`、`Stats/helpers.swift` | 将合并项视为独立活动状态栏项目，并在全局暂停/恢复时同步合并专用读取器 |
@@ -55,13 +57,21 @@ macOS system monitor in your menu bar
 
 本次核心二开提交共调整 **26 个文件**（`686 insertions / 267 deletions`）。基线为上游提交 `88d5359`，核心功能提交为 [`81d5162`](https://github.com/BianZhongMing/stats/commit/81d516200409e05e402c9e7513823246396782db)。
 
+### combined.5 更新摘要
+
+- Reader 回调按独立菜单栏、独立弹窗、设置页、Combined 弹窗和 Combined 菜单栏真实消费者定向投递，隐藏界面不再持续维护。
+- Network 拆分快慢路径，纯 Combined 网速只读取接口累计字节；即使偏好设置为进程模式，也不会启动 `nettop`。
+- 增加实时、平衡、省电三档能耗模式，支持空闲降频、系统低电量模式联动、同频 Timer 共用及不可重入采样。
+- Combined 电池模块更新为 A1 图标，移除重复的“充电中”文字，新增充满还需、循环次数、最大容量比例和 mAh。
+- 修正 Apple Silicon 最大容量读取顺序，使显示值跟随 macOS 的 Full Charge Capacity 口径。
+
 ### 构建与发布信息
 
 - 应用版本：`3.0.21`（build `849`）
 - 架构：Universal（`x86_64` + `arm64`）
 - 签名：ad-hoc；不是 Apple 公证版本，首次运行时可能需要在“系统设置 → 隐私与安全性”中手动允许
 - 已验证：Release 构建、Universal 架构、`codesign --verify --deep --strict`、DMG 校验和、ZIP 完整性
-- 当前 Release：[`v3.0.21-combined.3`](https://github.com/BianZhongMing/stats/releases/tag/v3.0.21-combined.3)
+- 当前 Release：[`v3.0.21-combined.5`](https://github.com/BianZhongMing/stats/releases/tag/v3.0.21-combined.5)
 
 ## Installation
 ### Manual（本 Fork）
