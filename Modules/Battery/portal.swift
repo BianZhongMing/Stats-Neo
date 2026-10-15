@@ -13,11 +13,11 @@ import Cocoa
 import Kit
 
 internal class Portal: PortalWrapper {
-    private let batteryView: BatteryView = BatteryView()
+    private let batteryView: BatteryView = BatteryView(showsPercentage: true, showsStatusBadge: true)
     
-    private var levelField: NSTextField? = nil
-    private var statusField: NSTextField? = nil
-    private var healthField: NSTextField? = nil
+    private var chargeTimeField: NSTextField? = nil
+    private var cyclesField: NSTextField? = nil
+    private var capacityField: NSTextField? = nil
     
     public override func load() {
         let chart = self.chartView()
@@ -41,37 +41,37 @@ internal class Portal: PortalWrapper {
         view.distribution = .fillEqually
         view.spacing = Constants.Popup.spacing*2
         
-        self.levelField = portalRow(view, title: "\(localizedString("Level")):").1
-        self.statusField = portalRow(view, title: "\(localizedString("Status")):").1
-        self.healthField = portalRow(view, title: "\(localizedString("Health")):").1
+        self.chargeTimeField = portalRow(view, title: "\(localizedString("Time to full")):").1
+        self.cyclesField = portalRow(view, title: "\(localizedString("Cycles")):").1
+        self.capacityField = portalRow(view, title: "\(localizedString("Max capacity")):").1
         
         return view
     }
     
     public func loadCallback(_ value: Battery_Usage) {
         DispatchQueue.main.async(execute: {
-            self.batteryView.setValue(abs(value.level), connected: !value.isBatteryPowered, charging: value.isCharging)
-            
-            self.levelField?.stringValue = "\(Int(abs(value.level) * 100))%"
-            self.levelField?.toolTip = "\(value.currentCapacity) mAh"
-            
-            var status: String = localizedString("Charging")
-            var color: NSColor = .systemGreen
-            if value.isBatteryPowered {
-                status = localizedString("On battery")
-                color = value.level > 0.15 ? .textColor : .systemRed
-            } else if !value.isCharging {
-                if value.isCharged && value.level >= 1 {
-                    status = localizedString("Plugged in")
-                } else if value.optimizedChargingEngaged {
-                    status = localizedString("On hold")
-                    color = .systemGray
-                }
+            self.batteryView.setValue(
+                abs(value.level),
+                connected: !value.isBatteryPowered,
+                charging: value.isCharging,
+                optimizedCharging: value.optimizedChargingEngaged,
+                charged: value.isCharged
+            )
+
+            let chargeTime: String
+            if value.isCharged || value.level >= 1 {
+                chargeTime = localizedString("Fully charged")
+            } else if value.optimizedChargingEngaged && !value.isCharging {
+                chargeTime = localizedString("On hold")
+            } else if value.isCharging && value.timeToCharge > 0 {
+                chargeTime = Double(value.timeToCharge * 60).printSecondsToHoursMinutesSeconds(short: true)
+            } else {
+                chargeTime = "—"
             }
-            self.statusField?.stringValue = status
-            self.statusField?.textColor = color
-            
-            self.healthField?.stringValue = "\(value.health)%"
+            self.chargeTimeField?.stringValue = chargeTime
+            self.cyclesField?.stringValue = "\(value.cycles)"
+            self.capacityField?.stringValue = "\(value.health)% · \(value.maxCapacity) mAh"
+            self.capacityField?.toolTip = "\(localizedString("Designed capacity")): \(value.designedCapacity) mAh"
         })
     }
 }

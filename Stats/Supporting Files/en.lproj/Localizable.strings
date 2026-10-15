@@ -490,6 +490,7 @@
 "Is charging" = "Is charging";
 "Time to discharge" = "Time to discharge";
 "Time to charge" = "Time to charge";
+"Time to full" = "Time to full";
 "Calculating" = "Calculating";
 "Fully charged" = "Fully charged";
 "Low level notification" = "Low level notification";

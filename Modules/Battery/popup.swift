@@ -422,9 +422,21 @@ internal class BatteryView: NSView {
     private var percentage: Double = 0
     private var connected: Bool = false
     private var charging: Bool = false
+    private var optimizedCharging: Bool = false
+    private var charged: Bool = false
+    private let showsPercentage: Bool
+    private let showsStatusBadge: Bool
     
     public override init(frame: NSRect = NSRect.zero) {
+        self.showsPercentage = false
+        self.showsStatusBadge = false
         super.init(frame: frame)
+    }
+
+    public init(showsPercentage: Bool, showsStatusBadge: Bool) {
+        self.showsPercentage = showsPercentage
+        self.showsStatusBadge = showsStatusBadge
+        super.init(frame: .zero)
     }
     
     required init?(coder: NSCoder) {
@@ -470,10 +482,6 @@ internal class BatteryView: NSView {
         batteryFrame.lineWidth = lineWidth
         batteryFrame.stroke()
         
-        if self.percentage == 0 {
-            return
-        }
-        
         let innerPadding: CGFloat = 5 * scale
         let innerHeight: CGFloat = h - (innerPadding*2)
         let minWidth: CGFloat = 8 * scale
@@ -495,7 +503,39 @@ internal class BatteryView: NSView {
         inner.close()
         inner.fill()
         
-        if self.connected {
+        if self.showsPercentage {
+            let value = "\(Int((self.percentage * 100).rounded()))%"
+            let fontSize = Swift.max(11, 20 * scale)
+            let style = NSMutableParagraphStyle()
+            style.alignment = .center
+            let foregroundColor: NSColor = self.percentage >= 0.46 ? .white : .labelColor
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .bold),
+                .foregroundColor: foregroundColor,
+                .paragraphStyle: style
+            ]
+            let rect = NSRect(
+                x: batteryFrame.bounds.minX,
+                y: batteryFrame.bounds.midY - (fontSize / 2) - (1 * scale),
+                width: batteryFrame.bounds.width,
+                height: fontSize + (3 * scale)
+            )
+            if self.percentage >= 0.46 {
+                let outlineAttributes = attributes.merging([.foregroundColor: NSColor.black.withAlphaComponent(0.55)]) { _, value in value }
+                let border = Swift.max(0.7, 1.1 * scale)
+                for offset in [
+                    CGPoint(x: -border, y: 0), CGPoint(x: border, y: 0),
+                    CGPoint(x: 0, y: -border), CGPoint(x: 0, y: border)
+                ] {
+                    value.draw(in: rect.offsetBy(dx: offset.x, dy: offset.y), withAttributes: outlineAttributes)
+                }
+            }
+            value.draw(in: rect, withAttributes: attributes)
+        }
+
+        if self.showsStatusBadge {
+            self.drawStatusBadge(scale: scale, batteryFrame: batteryFrame)
+        } else if self.connected {
             let center = CGPoint(
                 x: batteryFrame.bounds.origin.x + (batteryFrame.bounds.width/2),
                 y: batteryFrame.bounds.origin.y + (batteryFrame.bounds.height/2)
@@ -531,12 +571,78 @@ internal class BatteryView: NSView {
         }
     }
     
-    public func setValue(_ value: Double, connected: Bool, charging: Bool) {
-        if self.percentage == value && self.connected == connected && self.charging == charging { return }
+    private func drawStatusBadge(scale: CGFloat, batteryFrame: NSBezierPath) {
+        let symbolName: String?
+        let color: NSColor
+        if self.percentage <= 0.2 && !self.connected {
+            symbolName = "exclamationmark"
+            color = .systemRed
+        } else if self.charging {
+            symbolName = "bolt.fill"
+            color = .systemGreen
+        } else if self.optimizedCharging {
+            symbolName = "pause.fill"
+            color = .systemGray
+        } else if self.charged || (self.connected && self.percentage >= 0.995) {
+            symbolName = "checkmark"
+            color = .systemGreen
+        } else if self.connected {
+            symbolName = "powerplug.fill"
+            color = .systemGreen
+        } else {
+            symbolName = nil
+            color = .clear
+        }
+        guard let symbolName else { return }
+
+        let radius = 10 * scale
+        let center = CGPoint(
+            x: batteryFrame.bounds.maxX - (8 * scale),
+            y: batteryFrame.bounds.maxY - (2 * scale)
+        )
+        let circle = NSBezierPath(ovalIn: NSRect(
+            x: center.x - radius,
+            y: center.y - radius,
+            width: radius * 2,
+            height: radius * 2
+        ))
+        color.setFill()
+        circle.fill()
+        circle.lineWidth = Swift.max(1, 1.5 * scale)
+        NSColor.windowBackgroundColor.setStroke()
+        circle.stroke()
+
+        let symbolSize = 9 * scale
+        guard let image = self.coloredSymbol(symbolName, color: .white, size: symbolSize) else { return }
+        let size = image.size
+        image.draw(in: NSRect(
+            x: center.x - size.width/2,
+            y: center.y - size.height/2,
+            width: size.width,
+            height: size.height
+        ))
+    }
+
+    public func setValue(
+        _ value: Double,
+        connected: Bool,
+        charging: Bool,
+        optimizedCharging: Bool = false,
+        charged: Bool = false
+    ) {
+        if self.percentage == value &&
+            self.connected == connected &&
+            self.charging == charging &&
+            self.optimizedCharging == optimizedCharging &&
+            self.charged == charged {
+            return
+        }
         
         self.percentage = value
         self.connected = connected
         self.charging = charging
+        self.optimizedCharging = optimizedCharging
+        self.charged = charged
         
         DispatchQueue.main.async(execute: {
             self.display()

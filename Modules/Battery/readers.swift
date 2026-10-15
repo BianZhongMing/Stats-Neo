@@ -106,11 +106,20 @@ internal class UsageReader: Reader<Battery_Usage> {
         if self.usage.designedCapacity == 0 {
             self.usage.designedCapacity = 1
         }
-        self.usage.maxCapacity = self.getIntValue((isARM ? "AppleRawMaxCapacity" : "MaxCapacity") as CFString)
-            ?? self.getIntValue("NominalChargeCapacity" as CFString)
-            ?? batteryData?["NominalChargeCapacity"] as? Int
-            ?? batteryData?["FullChargeCapacity"] as? Int
-            ?? 1
+        if isARM {
+            self.usage.maxCapacity = self.getIntValue("AppleRawMaxCapacity" as CFString)
+                ?? batteryData?["AppleRawMaxCapacity"] as? Int
+                ?? batteryData?["FullChargeCapacity"] as? Int
+                ?? self.getIntValue("NominalChargeCapacity" as CFString)
+                ?? batteryData?["NominalChargeCapacity"] as? Int
+                ?? 1
+        } else {
+            self.usage.maxCapacity = self.getIntValue("MaxCapacity" as CFString)
+                ?? self.getIntValue("NominalChargeCapacity" as CFString)
+                ?? batteryData?["FullChargeCapacity"] as? Int
+                ?? batteryData?["NominalChargeCapacity"] as? Int
+                ?? 1
+        }
         if self.usage.maxCapacity == 0 {
             self.usage.maxCapacity = 1
         }

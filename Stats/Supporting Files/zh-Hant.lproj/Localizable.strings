@@ -490,6 +490,7 @@
 "Is charging" = "充電中";
 "Time to discharge" = "放電時間";
 "Time to charge" = "充電時間";
+"Time to full" = "充飽尚需";
 "Calculating" = "計算中";
 "Fully charged" = "已充飽";
 "Low level notification" = "低電量通知";
