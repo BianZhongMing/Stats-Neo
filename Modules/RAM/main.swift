@@ -142,7 +142,10 @@ public class RAM: Module {
             }
         }
         
-        self.setReaders([self.usageReader, self.processReader])
+        self.setReaders(
+            [self.usageReader, self.processReader],
+            combined: [self.usageReader]
+        )
     }
     
     private func loadCallback(_ raw: RAM_Usage?) {

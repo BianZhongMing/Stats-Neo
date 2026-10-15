@@ -92,8 +92,7 @@ open class Module {
         get { Store.shared.bool(key: "\(self.name)_combinedIncluded", defaultValue: true) }
         set { Store.shared.set(key: "\(self.name)_combinedIncluded", value: newValue) }
     }
-    /// The module can collect data either for its own standalone item or exclusively for Combined.
-    /// Combined collection never changes `<Module>_state` and never enables the module's own menu-bar item.
+    /// Whether this module is configured as a card in the Combined popup.
     public var combinedPanelActive: Bool {
         self.available &&
         !Store.shared.bool(key: "pause", defaultValue: false) &&
@@ -101,17 +100,22 @@ open class Module {
         self.combinedIncluded &&
         self.portal != nil
     }
-    public var combinedActive: Bool {
-        let usedByMenuBarSpeed = self.name == "Network" &&
-            Store.shared.bool(key: "CombinedModules", defaultValue: false) &&
-            Store.shared.bool(key: "CombinedModules_network", defaultValue: false)
-        return self.combinedPanelActive || (
-            self.available &&
-            !Store.shared.bool(key: "pause", defaultValue: false) &&
-            usedByMenuBarSpeed
-        )
+    /// Whether this module supplies a value that is always visible in the Combined menu-bar item.
+    private var combinedMenuBarActive: Bool {
+        self.available &&
+        !Store.shared.bool(key: "pause", defaultValue: false) &&
+        self.name == "Network" &&
+        Store.shared.bool(key: "CombinedModules", defaultValue: false) &&
+        Store.shared.bool(key: "CombinedModules_network", defaultValue: false)
     }
-    public var collecting: Bool { self.enabled || self.combinedActive }
+    /// Combined is configured for this module, even if its popup is currently closed.
+    public var combinedActive: Bool {
+        self.combinedPanelActive || self.combinedMenuBarActive
+    }
+    /// A reader callback currently has a real consumer.
+    public var collecting: Bool {
+        self.enabled || self.combinedMenuBarActive || (self.combinedPanelActive && self.combinedPopupVisible)
+    }
     public var userDefaults: UserDefaults? = UserDefaults(suiteName: "\(Bundle.main.object(forInfoDictionaryKey: "TeamId") as! String).eu.exelban.Stats.widgets")
     
     public var popupKeyboardShortcut: [UInt16] { self.popupView?.keyboardShortcut ?? [] }
@@ -126,8 +130,11 @@ open class Module {
     
     private let log: NextLog
     private var readers: [Reader_p] = []
+    private var combinedReaders: [Reader_p] = []
+    private var combinedMenuBarReaders: [Reader_p] = []
     private var popupVisible = false
     private var settingsVisible = false
+    private var combinedPopupVisible = false
     
     private var pauseState: Bool {
         get { Store.shared.bool(key: "pause", defaultValue: false) }
@@ -201,8 +208,8 @@ open class Module {
     
     // load function which call when app start
     public func mount() {
-        guard self.collecting else { return }
-        self.startReaders()
+        guard self.enabled || self.combinedMenuBarActive else { return }
+        self.updateReaderVisibility()
         if self.enabled {
             self.menuBar.enable()
         }
@@ -235,7 +242,7 @@ open class Module {
         self.enabled = true
         Store.shared.set(key: "\(self.config.name)_state", value: true)
         self.userDefaults?.set(true, forKey: "\(self.config.name)_state")
-        self.startReaders()
+        self.updateReaderVisibility()
         self.menuBar.enable()
         self.window?.setState(self.enabled)
         debug("Module enabled", log: self.log)
@@ -250,39 +257,34 @@ open class Module {
             Store.shared.set(key: "\(self.config.name)_state", value: false)
             self.userDefaults?.set(false, forKey: "\(self.config.name)_state")
         }
-        self.readers.forEach {
-            $0.lock()
-            $0.stop()
-        }
         self.popupVisible = false
         self.menuBar.disable()
         self.window?.setState(self.enabled)
         self.popup?.setIsVisible(false)
-        // Keep readers alive when this module is still selected by Combined.
-        // The standalone module remains disabled and its menu-bar item stays hidden.
-        if self.combinedActive {
-            self.startReaders()
-        }
+        self.updateReaderVisibility()
         debug("Module disabled", log: self.log)
     }
     
-    public func setReaders(_ list: [Reader_p?]) {
-        self.readers = list.filter({ $0 != nil }).map({ $0! as Reader_p })
+    /// Registers all readers and declares the minimal subsets consumed by Combined.
+    /// Readers omitted from both subsets keep the original standalone popup/settings lifecycle.
+    public func setReaders(
+        _ list: [Reader_p?],
+        combined: [Reader_p?] = [],
+        combinedMenuBar: [Reader_p?] = []
+    ) {
+        self.readers = list.compactMap { $0 }
+        self.combinedReaders = combined.compactMap { $0 }
+        self.combinedMenuBarReaders = combinedMenuBar.compactMap { $0 }
     }
 
-    /// Synchronize reader lifetime with the independent Combined selection.
-    /// This intentionally does not touch `enabled`, persisted module state, module settings UI,
-    /// or the module's own menu-bar item.
-    public func syncCombinedState() {
+    /// Synchronize reader lifetime with Combined selection, visibility and menu-bar consumers.
+    /// This intentionally does not touch the standalone module state or menu-bar item.
+    public func syncCombinedState(popupVisible: Bool? = nil) {
         guard self.available else { return }
-        if self.collecting {
-            self.startReaders()
-        } else {
-            self.readers.forEach {
-                $0.lock()
-                $0.stop()
-            }
+        if let popupVisible {
+            self.combinedPopupVisible = popupVisible
         }
+        self.updateReaderVisibility()
     }
     
     // determine if module is available (can be overrided in module)
@@ -317,44 +319,37 @@ open class Module {
     }
     
     private func readerHasVisibleConsumer(_ reader: Reader_p) -> Bool {
-        // Combined is a first-class consumer: selected modules keep their portal data fresh
-        // even when their standalone module/tab is disabled.
-        if self.combinedActive { return true }
-        // Regular readers can enter sleep mode while either standalone view is already open.
-        let shared = reader.sleep || (!reader.popup && !reader.preview)
-        return self.enabled && (
-            (self.popupVisible && (reader.popup || shared)) ||
-            (self.settingsVisible && (reader.preview || shared))
-        )
-    }
-    
-    private func startReaders() {
-        self.readers.forEach { reader in
-            reader.initStoreValues(title: self.config.name)
-            if self.readerHasVisibleConsumer(reader) {
-                reader.unlock()
-            } else {
-                reader.lock()
-            }
-            reader.start()
+        if self.combinedMenuBarActive && self.combinedMenuBarReaders.contains(where: { $0 === reader }) {
+            return true
         }
+        if self.combinedPanelActive && self.combinedPopupVisible && self.combinedReaders.contains(where: { $0 === reader }) {
+            return true
+        }
+        guard self.enabled else { return false }
+
+        // Standalone core readers keep the menu-bar item and notifications fresh.
+        if !reader.popup && !reader.preview && !reader.sleep {
+            return true
+        }
+        let shared = reader.sleep || (!reader.popup && !reader.preview)
+        return (self.popupVisible && (reader.popup || shared)) ||
+            (self.settingsVisible && (reader.preview || shared))
     }
-    
+
     private func updateReaderVisibility() {
         self.readers.forEach { reader in
             let visible = self.readerHasVisibleConsumer(reader)
             if visible {
+                reader.initStoreValues(title: self.config.name)
                 reader.unlock()
+                if !reader.active {
+                    reader.start()
+                }
             } else {
                 reader.lock()
-            }
-            guard reader.popup || reader.preview || reader.sleep else { return }
-            
-            if visible {
-                reader.initStoreValues(title: self.config.name)
-                reader.start()
-            } else {
-                reader.pause()
+                if reader.active {
+                    reader.stop()
+                }
             }
         }
     }

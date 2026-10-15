@@ -189,7 +189,7 @@ public class CPU: Module {
             self.frequencyReader,
             self.limitReader,
             self.averageLoadReader
-        ])
+        ], combined: [self.loadReader])
     }
     
     private func loadCallback(_ raw: CPU_Load?) {

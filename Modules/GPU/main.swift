@@ -161,7 +161,7 @@ public class GPU: Module {
             self?.infoReader?.read()
         }
         
-        self.setReaders([self.infoReader])
+        self.setReaders([self.infoReader], combined: [self.infoReader])
     }
     
     private func infoCallback(_ raw: GPUs?) {

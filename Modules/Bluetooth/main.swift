@@ -109,7 +109,7 @@ public class Bluetooth: Module {
             self?.devicesReader?.read()
         }
         
-        self.setReaders([self.devicesReader])
+        self.setReaders([self.devicesReader], combined: [self.devicesReader])
     }
     
     private func batteryCallback(_ raw: [BLEDevice]?) {

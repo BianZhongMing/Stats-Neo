@@ -11,10 +11,11 @@
 
 import Cocoa
 
-public protocol Reader_p {
+public protocol Reader_p: AnyObject {
     var popup: Bool { get }
     var preview: Bool { get }
     var sleep: Bool { get }
+    var active: Bool { get }
     
     func setup()
     func read()

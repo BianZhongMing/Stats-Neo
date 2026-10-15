@@ -46,7 +46,9 @@ internal class CombinedView: NSObject, NSGestureRecognizerDelegate {
             }
         }
 
-        self.popup = PopupWindow(title: "Stats", module: .combined, view: Popup()) { _ in }
+        self.popup = PopupWindow(title: "Stats", module: .combined, view: Popup()) { [weak self] state in
+            self?.visibilityCallback(state)
+        }
 
         if self.status {
             self.enable()
@@ -80,6 +82,8 @@ internal class CombinedView: NSObject, NSGestureRecognizerDelegate {
     }
 
     public func disable() {
+        self.popup?.setIsVisible(false)
+        self.visibilityCallback(false)
         if let item = self.menuBarItem {
             NSStatusBar.system.removeStatusItem(item)
         }
@@ -120,8 +124,10 @@ internal class CombinedView: NSObject, NSGestureRecognizerDelegate {
         self.networkSpeedView.setValue(input: download, output: upload)
     }
 
-    // call when popup appear/disappear
-    private func visibilityCallback(_ state: Bool) {}
+    // Starts portal readers only while the Combined popup is visible.
+    private func visibilityCallback(_ state: Bool) {
+        modules.forEach { $0.syncCombinedState(popupVisible: state) }
+    }
 
     @objc private func handleClick() {
         // The combined item always opens the aggregated popup, regardless of whether it shows an icon or network speed.

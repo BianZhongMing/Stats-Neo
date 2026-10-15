@@ -84,7 +84,7 @@ public class Sensors: Module {
             self?.sensorsReader?.read()
         }
         
-        self.setReaders([self.sensorsReader])
+        self.setReaders([self.sensorsReader], combined: [self.sensorsReader])
     }
     
     public override func willTerminate() {

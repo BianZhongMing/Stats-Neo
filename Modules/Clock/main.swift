@@ -135,7 +135,7 @@ public class Clock: Module {
             reader.start()
         }
         
-        self.setReaders([self.reader])
+        self.setReaders([self.reader], combined: [self.reader])
     }
     
     private func callback(_ value: Date?) {

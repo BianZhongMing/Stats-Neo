@@ -302,7 +302,10 @@ public class Disk: Module {
             }
         }
         
-        self.setReaders([self.capacityReader, self.activityReader, self.processReader, self.smartReader])
+        self.setReaders(
+            [self.capacityReader, self.activityReader, self.processReader, self.smartReader],
+            combined: [self.capacityReader, self.activityReader]
+        )
     }
     
     private func capacityCallback(_ value: Disks) {

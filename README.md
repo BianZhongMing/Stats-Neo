@@ -21,7 +21,7 @@ macOS system monitor in your menu bar
 | 合并模块入口 | 位于应用通用设置中，与普通模块启用状态和 one-view 行为耦合 | 在设置侧边栏增加独立的 **Combined / 合并**页面，使用与普通模块一致的右上角启用开关 |
 | 合并组件管理 | 聚合已启用的普通模块 | 可直接在合并页面勾选组件并拖拽排序；选择结果独立保存，不会修改普通模块的开关；拖动释放后按持久化顺序安全重建全宽行，避免列错位或行向中间收缩 |
 | 合并状态栏 | 复用普通模块的菜单栏 View，可能影响其显示方式 | 合并项是独立状态栏项目，可选择显示单图标或完整上下行网速；普通 CPU、网络等状态栏项目可同时存在 |
-| 数据采集 | 普通模块关闭后对应读取器停止 | 被合并页选中的组件可独立保持读取器运行，只更新聚合面板，不会偷偷启用普通模块或其状态栏项目 |
+| 数据采集 | 普通模块关闭后对应读取器停止 | 合并状态栏仅保持真正需要的网络速率读取器；CPU、内存、磁盘、电池等面板数据只在聚合弹窗打开时采集，进程榜、温度/频率、SMART 和连通性等详情读取器仅在对应详情可见时运行 |
 | 聚合面板 | 标题和组件布局沿用原聚合实现 | 标题改为 `Stats`，字体和间距更紧凑；组件按选择顺序展示，传感器标题、列表和滚动区域统一左对齐 |
 | 合并选项 | 包含间距、分隔符、合并详情等多组关联设置 | 移除意义有限且容易造成状态混乱的旧选项，保留启用开关、状态栏网速模式、组件选择和排序 |
 
@@ -40,7 +40,7 @@ macOS system monitor in your menu bar
 | `Stats/Views/CombinedView.swift` | 重构合并状态栏与聚合弹窗；新增独立 `CombinedSettings`、组件勾选列表、拖拽排序，以及合并专用 `SpeedWidget` |
 | `Stats/Views/Settings.swift` | 在侧边栏加入 Combined 页面，并复用设置窗口右上角通用开关控制合并模块 |
 | `Stats/Views/AppSettings.swift` | 移除通用设置页中旧的合并配置，避免出现两套入口和状态来源 |
-| `Kit/module/module.swift` | 增加 `combinedIncluded`、`combinedPanelActive`、`combinedActive`、`collecting` 和 `syncCombinedState()`，将普通模块启用状态与合并采集生命周期解耦 |
+| `Kit/module/module.swift`、`Kit/module/reader.swift` | 按独立模块、合并弹窗和合并状态栏区分真实消费者；无消费者时彻底停止 Reader，并用 active 状态保证资源注册幂等 |
 | `Kit/module/widget.swift` | 合并开关不再强制普通模块进入 one-view，也不再隐藏、搬移或重建普通模块的状态栏项目 |
 | `Modules/Net/readers.swift` | 默认采样周期改为 3 秒；按真实周期换算每秒速率，同时保留累计流量和异常跳变保护 |
 | `Modules/Net/main.swift` | 网络回调在普通模块关闭但被合并使用时仍可更新，并通过 `combinedNetworkSpeed` 通知独立刷新合并网速组件 |
@@ -58,7 +58,7 @@ macOS system monitor in your menu bar
 - 架构：Universal（`x86_64` + `arm64`）
 - 签名：ad-hoc；不是 Apple 公证版本，首次运行时可能需要在“系统设置 → 隐私与安全性”中手动允许
 - 已验证：Release 构建、Universal 架构、`codesign --verify --deep --strict`、DMG 校验和、ZIP 完整性
-- 当前 Release：[`v3.0.21-combined.2`](https://github.com/BianZhongMing/stats/releases/tag/v3.0.21-combined.2)
+- 当前 Release：[`v3.0.21-combined.3`](https://github.com/BianZhongMing/stats/releases/tag/v3.0.21-combined.3)
 
 ## Installation
 ### Manual（本 Fork）

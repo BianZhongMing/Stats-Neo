@@ -100,7 +100,10 @@ public class Battery: Module {
             }
         }
         
-        self.setReaders([self.usageReader, self.processReader])
+        self.setReaders(
+            [self.usageReader, self.processReader],
+            combined: [self.usageReader]
+        )
     }
     
     public override func willTerminate() {

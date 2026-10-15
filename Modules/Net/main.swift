@@ -230,7 +230,11 @@ public class Network: Module {
             self?.setIPUpdater()
         }
         
-        self.setReaders([self.usageReader, self.processReader, self.connectivityReader])
+        self.setReaders(
+            [self.usageReader, self.processReader, self.connectivityReader],
+            combined: [self.usageReader],
+            combinedMenuBar: [self.usageReader]
+        )
         
         self.setIPUpdater()
         self.setUsageReset()

@@ -67,6 +67,9 @@ jobs:
         if: inputs.dry_run != true
         run: spctl -a -t exec -vvv build/Stats.app
 
+      - name: Package ZIP
+        run: ditto -c -k --sequesterRsrc --keepParent build/Stats.app build/Stats.app.zip
+
       - name: DMG
         run: |
           git clone --depth 1 https://github.com/create-dmg/create-dmg
@@ -83,16 +86,20 @@ jobs:
             build/Stats.dmg build/Stats.app
           rm -rf ./create-dmg
 
-      - name: Upload DMG
+      - name: Upload packages
         if: inputs.dry_run == true
         uses: actions/upload-artifact@v4
         with:
-          name: Stats.dmg
-          path: build/Stats.dmg
+          name: Stats-packages
+          path: |
+            build/Stats.dmg
+            build/Stats.app.zip
 
       - name: Publish
         if: inputs.dry_run != true
         uses: softprops/action-gh-release@v2
         with:
-          files: build/Stats.dmg
+          files: |
+            build/Stats.dmg
+            build/Stats.app.zip
           body: file(./CHANGELOG.md)
