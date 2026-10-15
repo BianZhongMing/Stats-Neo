@@ -168,6 +168,10 @@
 "Combined modules" = "合并模块";
 "Show icon instead of widgets" = "显示图标而非小组件";
 "Show network speed" = "在菜单栏显示网速";
+"Energy mode" = "能耗模式";
+"Real-time" = "实时";
+"Balanced" = "平衡";
+"Low power" = "省电";
 "Combined details" = "合并详情";
 "Spacing" = "间距";
 "Combined" = "合并";

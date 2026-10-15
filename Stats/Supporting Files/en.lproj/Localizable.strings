@@ -168,6 +168,10 @@
 "Combined modules" = "Combined modules";
 "Show icon instead of widgets" = "Show icon instead of widgets";
 "Show network speed" = "Show network speed in menu bar";
+"Energy mode" = "Energy mode";
+"Real-time" = "Real-time";
+"Balanced" = "Balanced";
+"Low power" = "Low power";
 "Combined details" = "Combined details";
 "Spacing" = "Spacing";
 "Combined" = "Combined";
