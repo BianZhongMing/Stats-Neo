@@ -40,6 +40,16 @@ class KitTests: XCTestCase {
         XCTAssertFalse(isNewestVersion(currentVersion: "", latestVersion: ""))
     }
     
+    func testEnergyModeIntervals() throws {
+        XCTAssertEqual(EnergyMode.performance.interval(configured: 1, samplingClass: .process), 1)
+        XCTAssertEqual(EnergyMode.balanced.interval(configured: 1, samplingClass: .process), 3)
+        XCTAssertEqual(EnergyMode.balanced.interval(configured: 3, samplingClass: .network), 3)
+        XCTAssertEqual(EnergyMode.lowPower.interval(configured: 1, samplingClass: .process), 10)
+        XCTAssertEqual(EnergyMode.lowPower.interval(configured: 3, samplingClass: .network), 10)
+        XCTAssertEqual(EnergyMode.lowPower.interval(configured: 1, samplingClass: .regular), 5)
+        XCTAssertEqual(EnergyMode.lowPower.interval(configured: 1, samplingClass: .clock), 1)
+    }
+
     func testUnitsGetReadableSpeed_byte() throws {
         XCTAssertEqual(Units(bytes: 0).getReadableSpeed(base: .byte), "0 KB/s")
         XCTAssertEqual(Units(bytes: 999).getReadableSpeed(base: .byte), "0 KB/s")

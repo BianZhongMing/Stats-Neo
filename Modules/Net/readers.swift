@@ -18,18 +18,17 @@ import CoreLocation
 // swiftlint:disable control_statement
 extension CWPHYMode: @retroactive CustomStringConvertible {
     public var description: String {
-        // Wi-Fi 7 was added to newer CoreWLAN SDKs with raw value 7.
-        // Check the raw value first so the project still builds with older Xcode versions.
-        if self.rawValue == 7 { return "802.11be" }
-        switch(self) {
-        case .mode11a:  return "802.11a"
-        case .mode11ac: return "802.11ac"
-        case .mode11b:  return "802.11b"
-        case .mode11g:  return "802.11g"
-        case .mode11n:  return "802.11n"
-        case .mode11ax: return "802.11ax"
-        case .modeNone: return "none"
-        @unknown default: return "unknown"
+        // Raw values keep the source compatible with SDKs that predate Wi-Fi 7.
+        switch self.rawValue {
+        case 0: return "none"
+        case 1: return "802.11a"
+        case 2: return "802.11b"
+        case 3: return "802.11g"
+        case 4: return "802.11n"
+        case 5: return "802.11ac"
+        case 6: return "802.11ax"
+        case 7: return "802.11be"
+        default: return "unknown"
         }
     }
 }
@@ -129,6 +128,7 @@ internal class UsageReader: Reader<Network_Usage>, CWEventDelegate, CLLocationMa
         set { Store.shared.set(key: "Network_interface", value: newValue) }
     }
     private var lastInterfaceID: String = ""
+    private var previousCounters: Bandwidth = Bandwidth()
     
     private func isVirtualInterface(_ name: String) -> Bool {
         return self.virtualInterfacePrefixes.contains(where: { name.hasPrefix($0) })
@@ -205,8 +205,14 @@ internal class UsageReader: Reader<Network_Usage>, CWEventDelegate, CLLocationMa
     private var listeningForWifiEvents: Bool = false
     
     private var locationManager: CLLocationManager?
+    private var detailResourcesActive = false
     
     private var lastDetailsReadTS: Date = .distantPast
+    private var lastSampleUptime: TimeInterval?
+    private var idleSamples: Int = 0
+    public var needsDetails: (() -> Bool) = { true }
+    public var needsProcessCounters: (() -> Bool) = { true }
+    public var detailVisibilityChanged: ((Bool) -> Void)?
     
     private let detailsQueue = DispatchQueue(label: "eu.exelban.NetworkDetailsReader")
     private var _detailsInProgress: Bool = false
@@ -217,12 +223,15 @@ internal class UsageReader: Reader<Network_Usage>, CWEventDelegate, CLLocationMa
     
     public override func setup() {
         self.defaultInterval = 3
+        self.setSamplingClass(.network)
         self.reachability.reachable = { [weak self] in
             guard let self else { return }
             if self.active {
                 self.getPublicIP()
-                self.getDetails()
-                self.getWiFiDetails()
+                if self.needsDetails() {
+                    self.getDetails()
+                    self.getWiFiDetails()
+                }
             }
         }
         self.reachability.unreachable = { [weak self] in
@@ -239,7 +248,7 @@ internal class UsageReader: Reader<Network_Usage>, CWEventDelegate, CLLocationMa
         
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 1) { [weak self] in
             guard let self else { return }
-            if self.active {
+            if self.active && self.needsDetails() {
                 self.getPublicIP()
                 self.getDetails()
             }
@@ -266,91 +275,134 @@ internal class UsageReader: Reader<Network_Usage>, CWEventDelegate, CLLocationMa
         self.variablesQueue.sync {
             self._usage.wifiLocationAuthorization = nil
         }
+        self.lastSampleUptime = nil
+        self.idleSamples = 0
         super.start()
-        self.wifiClient.delegate = self
-        self.startListeningForWifiEvents()
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.active else { return }
-            self.observeWiFiLocationAuthorization()
-        }
+        self.updateDetailResources(self.needsDetails())
     }
     
     public override func stop() {
         super.stop()
         self.resetWiFiDetails()
-        self.stopListeningForWifiEvents()
-        self.wifiClient.delegate = nil
+        self.updateDetailResources(false)
+    }
+
+    private func updateDetailResources(_ active: Bool) {
+        guard self.detailResourcesActive != active else { return }
+        self.detailResourcesActive = active
+        if active {
+            self.wifiClient.delegate = self
+            self.startListeningForWifiEvents()
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.active, self.detailResourcesActive else { return }
+                self.observeWiFiLocationAuthorization()
+            }
+        } else {
+            self.stopListeningForWifiEvents()
+            self.wifiClient.delegate = nil
+            self.locationManager?.delegate = nil
+            self.locationManager = nil
+        }
     }
     
     public override func read() {
         self.checkUsageReset()
-        
+
+        let nowUptime = ProcessInfo.processInfo.systemUptime
+        var elapsed = max(nowUptime - (self.lastSampleUptime ?? nowUptime), 0.001)
+        self.lastSampleUptime = nowUptime
+
         let interfaceID = self.interfaceID
         if interfaceID != self.lastInterfaceID {
             self.lastInterfaceID = interfaceID
             self.resetWiFiDetails()
-            self.usage.bandwidth = Bandwidth()
+            self.previousCounters = Bandwidth()
+            elapsed = max(self.interval ?? Double(self.defaultInterval), 1)
             self.lastDetailsReadTS = .distantPast
         }
-        
-        self.requestDetails()
-        
+
+        let wantsDetails = self.needsDetails()
+        self.updateDetailResources(wantsDetails)
+        self.detailVisibilityChanged?(wantsDetails)
+        if wantsDetails {
+            self.requestDetails()
+        }
+
+        let useProcessCounters = self.reader == "process" && self.needsProcessCounters()
         let current: Bandwidth
-        if self.reader == "interface" {
-            current = self.readInterfaceBandwidth()
+        if !useProcessCounters {
+            current = self.readInterfaceBandwidth(updateDetails: wantsDetails)
         } else {
-            self.readInterfaceStatus()
+            if wantsDetails { self.readInterfaceStatus() }
             current = self.readProcessBandwidth()
         }
-        
-        // allows to reset the value to 0 when first read
-        let interval = self.interval ?? 3.0
-        let divisor = max(interval, 1.0)
 
         var uploadDelta: Int64 = 0
         var downloadDelta: Int64 = 0
-
-        if self.usage.bandwidth.upload != 0 {
-            uploadDelta = current.upload - self.usage.bandwidth.upload
+        if self.previousCounters.upload != 0 {
+            uploadDelta = current.upload - self.previousCounters.upload
         }
-        if self.usage.bandwidth.download != 0 {
-            downloadDelta = current.download - self.usage.bandwidth.download
+        if self.previousCounters.download != 0 {
+            downloadDelta = current.download - self.previousCounters.download
         }
-
         uploadDelta = max(uploadDelta, 0)
         downloadDelta = max(downloadDelta, 0)
 
-        // drop one-shot counter jumps (e.g. on reconnect) that exceed what the link can physically deliver
         let maxDelta: Int64 = {
             if let rate = self.usage.interface?.transmitRate, rate > 0 {
-                return Int64(rate * 1_000_000 / 8 * 1.5 * interval) // 50% headroom over negotiated link rate
+                return Int64(rate * 1_000_000 / 8 * 1.5 * elapsed)
             }
-            return Int64(12_500_000_000 * interval) // 100 Gbps fallback when link rate is unknown
+            return Int64(12_500_000_000 * elapsed)
         }()
         if uploadDelta > maxDelta { uploadDelta = 0 }
         if downloadDelta > maxDelta { downloadDelta = 0 }
 
         self.usage.total.upload += uploadDelta
         self.usage.total.download += downloadDelta
-
-        // Convert the 3-second sample delta to a per-second rate for display.
-        self.usage.bandwidth.upload = Int64(Double(uploadDelta) / divisor)
-        self.usage.bandwidth.download = Int64(Double(downloadDelta) / divisor)
-        
+        self.usage.bandwidth.upload = Int64(Double(uploadDelta) / elapsed)
+        self.usage.bandwidth.download = Int64(Double(downloadDelta) / elapsed)
         self.usage.status = self.reachability.isReachable
-        
+
         if self.vpnConnection && self.VPNMode {
             self.usage.bandwidth.upload /= 2
             self.usage.bandwidth.download /= 2
         }
-        
+
+        self.updateAdaptiveInterval(upload: self.usage.bandwidth.upload, download: self.usage.bandwidth.download, detailsVisible: wantsDetails)
         self.callback(self.usage)
-        
-        self.usage.bandwidth.upload = current.upload
-        self.usage.bandwidth.download = current.download
+        self.previousCounters = current
     }
-    
-    private func readInterfaceBandwidth() -> Bandwidth {
+
+    private func updateAdaptiveInterval(upload: Int64, download: Int64, detailsVisible: Bool) {
+        let configured = max(1, Store.shared.int(key: "Network_updateInterval", defaultValue: self.defaultInterval))
+        if detailsVisible || EnergyMode.effective == .performance {
+            self.idleSamples = 0
+            self.setRuntimeInterval(nil)
+            return
+        }
+
+        let activeThreshold: Int64 = 16 * 1024
+        if upload >= activeThreshold || download >= activeThreshold {
+            self.idleSamples = 0
+            self.setRuntimeInterval(nil)
+            return
+        }
+
+        self.idleSamples += 1
+        let target: Int
+        switch EnergyMode.effective {
+        case .performance:
+            target = configured
+        case .balanced:
+            target = self.idleSamples >= 3 ? max(configured, 10) : configured
+        case .lowPower:
+            target = self.idleSamples >= 2 ? max(configured, 30) : max(configured, 10)
+        }
+        self.setRuntimeInterval(target == configured ? nil : target)
+    }
+
+    private func readInterfaceBandwidth(updateDetails: Bool) -> Bandwidth {
+        guard updateDetails else { return self.getBytesInfo() ?? Bandwidth() }
         var interfaceAddresses: UnsafeMutablePointer<ifaddrs>? = nil
         guard getifaddrs(&interfaceAddresses) == 0 else {
             return Bandwidth()
@@ -825,7 +877,12 @@ internal class UsageReader: Reader<Network_Usage>, CWEventDelegate, CLLocationMa
     public func ssidDidChangeForWiFiInterface(withName interfaceName: String) {
         guard interfaceName == self.interfaceID else { return }
         self.resetWiFiDetails()
-        self.getWiFiDetails()
+        self.lastDetailsReadTS = .distantPast
+        if self.needsDetails() {
+            self.getDetails()
+            self.getWiFiDetails()
+            self.callback(self.usage)
+        }
     }
     
     private func isUsableSSID(_ ssid: String?) -> Bool {
@@ -857,6 +914,7 @@ public class ProcessReader: Reader<[Network_Process]> {
     
     public override func setup() {
         self.popup = true
+        self.setSamplingClass(.process)
     }
     
     public override func read() {

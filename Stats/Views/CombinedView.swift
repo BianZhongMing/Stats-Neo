@@ -253,6 +253,11 @@ internal class CombinedSettings: NSStackView {
         set { Store.shared.set(key: "CombinedModules_network", value: newValue) }
     }
 
+    private var energyMode: EnergyMode {
+        get { EnergyMode.selected }
+        set { Store.shared.set(key: "CombinedModules_energyMode", value: newValue.rawValue) }
+    }
+
     private var optionsSection: PreferencesSection?
     private var listSection: PreferencesSection?
     private let moduleList = CombinedModuleListView()
@@ -276,6 +281,11 @@ internal class CombinedSettings: NSStackView {
             PreferencesRow(localizedString("Show network speed"), component: switchView(
                 action: #selector(self.toggleNetwork),
                 state: self.showNetwork
+            )),
+            PreferencesRow(localizedString("Energy mode"), component: selectView(
+                action: #selector(self.changeEnergyMode),
+                items: EnergyModes,
+                selected: self.energyMode.rawValue
             ))
         ])
         scrollView.stackView.addArrangedSubview(self.optionsSection!)
@@ -342,6 +352,12 @@ internal class CombinedSettings: NSStackView {
         self.updateVisibility()
         NotificationCenter.default.post(name: .toggleOneView, object: nil)
         NotificationCenter.default.post(name: .moduleRearrange, object: nil)
+    }
+
+    @objc private func changeEnergyMode(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let mode = EnergyMode(rawValue: raw) else { return }
+        self.energyMode = mode
+        NotificationCenter.default.post(name: .energyModeChanged, object: nil)
     }
 
     @objc private func toggleNetwork(_ sender: NSButton) {

@@ -167,7 +167,9 @@ public class GPU: Module {
     private func infoCallback(_ raw: GPUs?) {
         guard raw != nil && !raw!.list.isEmpty, let value = raw, self.collecting else { return }
         
-        self.settingsView.setList(value)
+        if self.settingsConsumerActive {
+            self.settingsView.setList(value)
+        }
         
         let activeGPUs = value.active()
         guard let activeGPU = activeGPUs.first(where: { $0.state }) ?? activeGPUs.first else {
@@ -178,11 +180,20 @@ public class GPU: Module {
             return
         }
         
-        self.popupView.loadCallback(selectedGPU)
-        self.portalView.callback(selectedGPU)
-        self.notificationsView.usageCallback(utilization)
-        self.previewView.loadCallback(selectedGPU)
+        if self.standalonePopupConsumerActive {
+            self.popupView.loadCallback(selectedGPU)
+        }
+        if self.combinedPopupConsumerActive {
+            self.portalView.callback(selectedGPU)
+        }
+        if self.standaloneConsumerActive {
+            self.notificationsView.usageCallback(utilization)
+        }
+        if self.settingsConsumerActive {
+            self.previewView.loadCallback(selectedGPU)
+        }
         
+        guard self.standaloneConsumerActive else { return }
         self.menuBar.widgets.filter{ $0.isActive }.forEach { (w: SWidget) in
             switch w.item {
             case let widget as Mini:

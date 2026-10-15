@@ -114,7 +114,31 @@ open class Module {
     }
     /// A reader callback currently has a real consumer.
     public var collecting: Bool {
-        self.enabled || self.combinedMenuBarActive || (self.combinedPanelActive && self.combinedPopupVisible)
+        self.enabled || self.combinedMenuBarActive || self.combinedPopupConsumerActive
+    }
+    /// Standalone menu-bar widgets and notifications are active for this module.
+    public var standaloneConsumerActive: Bool {
+        self.enabled && self.available && !self.pauseState
+    }
+    /// The standalone popup is currently visible.
+    public var standalonePopupConsumerActive: Bool {
+        self.standaloneConsumerActive && self.popupVisible
+    }
+    /// The module settings/preview page is currently visible.
+    public var settingsConsumerActive: Bool {
+        self.standaloneConsumerActive && self.settingsVisible
+    }
+    /// The module card is currently visible inside the Combined popup.
+    public var combinedPopupConsumerActive: Bool {
+        self.combinedPanelActive && self.combinedPopupVisible
+    }
+    /// The Combined status item currently consumes this module's menu-bar value.
+    public var combinedMenuBarConsumerActive: Bool {
+        self.combinedMenuBarActive
+    }
+    /// Any popup-like surface needs detailed, frequently changing values.
+    public var visibleDetailConsumerActive: Bool {
+        self.standalonePopupConsumerActive || self.settingsConsumerActive || self.combinedPopupConsumerActive
     }
     public var userDefaults: UserDefaults? = UserDefaults(suiteName: "\(Bundle.main.object(forInfoDictionaryKey: "TeamId") as! String).eu.exelban.Stats.widgets")
     
@@ -181,6 +205,12 @@ open class Module {
         NotificationCenter.default.addObserver(self, selector: #selector(listenForPopupToggle), name: .togglePopup, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(listenForToggleWidget), name: .toggleWidget, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(listenForWindowOpen), name: .openWindow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(listenForEnergyModeChange), name: .energyModeChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(listenForEnergyModeChange), name: NSApplication.didBecomeActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(listenForEnergyModeChange), name: NSApplication.didResignActiveNotification, object: nil)
+        if #available(macOS 12.0, *) {
+            NotificationCenter.default.addObserver(self, selector: #selector(listenForEnergyModeChange), name: Notification.Name.NSProcessInfoPowerStateDidChange, object: nil)
+        }
         
         // swiftlint:disable empty_count
         if self.config.widgetsConfig.count != 0 {
@@ -285,6 +315,9 @@ open class Module {
             self.combinedPopupVisible = popupVisible
         }
         self.updateReaderVisibility()
+        if popupVisible == true {
+            self.readers.filter { self.readerHasVisibleConsumer($0) }.forEach { $0.readNow() }
+        }
     }
     
     // determine if module is available (can be overrided in module)
@@ -310,14 +343,30 @@ open class Module {
     private func popupVisibilityCallback(_ state: Bool) {
         self.popupVisible = state
         self.updateReaderVisibility()
+        self.listenForEnergyModeChange()
+        if state {
+            self.readers.filter { self.readerHasVisibleConsumer($0) }.forEach { $0.readNow() }
+        }
     }
     
     @objc private func listenForWindowOpen(_ notification: Notification) {
         guard let state = notification.userInfo?["state"] as? Bool else { return }
         self.settingsVisible = state && (notification.userInfo?["module"] as? String == self.config.name)
         self.updateReaderVisibility()
+        self.listenForEnergyModeChange()
     }
     
+    @objc private func listenForEnergyModeChange() {
+        self.readers.forEach { reader in
+            reader.refreshEnergyMode()
+            if reader.popup && self.standalonePopupConsumerActive && !NSApplication.shared.isActive {
+                reader.setRuntimeInterval(EnergyMode.effective == .lowPower ? 15 : 5)
+            } else if reader.popup {
+                reader.setRuntimeInterval(nil)
+            }
+        }
+    }
+
     private func readerHasVisibleConsumer(_ reader: Reader_p) -> Bool {
         if self.combinedMenuBarActive && self.combinedMenuBarReaders.contains(where: { $0 === reader }) {
             return true

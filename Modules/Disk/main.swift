@@ -310,20 +310,31 @@ public class Disk: Module {
     
     private func capacityCallback(_ value: Disks) {
         guard self.collecting else { return }
-        
-        DispatchQueue.main.async(execute: {
-            self.popupView.capacityCallback(value)
-            self.previewView.capacityCallback(value)
-        })
-        self.settingsView.setList(value)
-        
+
+        if self.standalonePopupConsumerActive || self.settingsConsumerActive {
+            DispatchQueue.main.async(execute: {
+                if self.standalonePopupConsumerActive {
+                    self.popupView.capacityCallback(value)
+                }
+                if self.settingsConsumerActive {
+                    self.previewView.capacityCallback(value)
+                    self.settingsView.setList(value)
+                }
+            })
+        }
+
         guard let d = value.first(where: { $0.mediaName == self.selectedDisk }) ?? value.first(where: { $0.root }) else {
             return
         }
         
-        self.portalView.utilizationCallback(d)
-        self.notificationsView.utilizationCallback(d.percentage)
+        if self.combinedPopupConsumerActive {
+            self.portalView.utilizationCallback(d)
+        }
+        if self.standaloneConsumerActive {
+            self.notificationsView.utilizationCallback(d.percentage)
+        }
         
+        guard self.standaloneConsumerActive else { return }
         self.menuBar.widgets.filter{ $0.isActive }.forEach { (w: SWidget) in
             switch w.item {
             case let widget as Mini: widget.setValue(d.percentage)
@@ -380,18 +391,27 @@ public class Disk: Module {
     
     private func activityCallback(_ value: Disks) {
         guard self.collecting else { return }
-        
-        DispatchQueue.main.async(execute: {
-            self.popupView.activityCallback(value)
-            self.previewView.activityCallback(value)
-        })
-        
+
+        if self.standalonePopupConsumerActive || self.settingsConsumerActive {
+            DispatchQueue.main.async(execute: {
+                if self.standalonePopupConsumerActive {
+                    self.popupView.activityCallback(value)
+                }
+                if self.settingsConsumerActive {
+                    self.previewView.activityCallback(value)
+                }
+            })
+        }
+
         guard let d = value.first(where: { $0.mediaName == self.selectedDisk }) ?? value.first(where: { $0.root }) else {
             return
         }
         
-        self.portalView.activityCallback(d)
-        
+        if self.combinedPopupConsumerActive {
+            self.portalView.activityCallback(d)
+        }
+
+        guard self.standaloneConsumerActive else { return }
         self.menuBar.widgets.filter{ $0.isActive }.forEach { (w: SWidget) in
             switch w.item {
             case let widget as SpeedWidget: 
@@ -408,10 +428,14 @@ public class Disk: Module {
     
     private func SMARTCallback(_ value: Disks) {
         guard self.collecting else { return }
-        
-        DispatchQueue.main.async(execute: {
-            self.popupView.smartCallback(value)
-        })
-        self.previewView.smartCallback(value)
+
+        if self.standalonePopupConsumerActive {
+            DispatchQueue.main.async(execute: {
+                self.popupView.smartCallback(value)
+            })
+        }
+        if self.settingsConsumerActive {
+            self.previewView.smartCallback(value)
+        }
     }
 }

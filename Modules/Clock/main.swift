@@ -151,11 +151,18 @@ public class Clock: Module {
             }
         }
         
-        DispatchQueue.main.async(execute: {
-            self.popupView.callback(clocks)
-            self.portalView.callback(clocks)
-        })
+        if self.standalonePopupConsumerActive || self.combinedPopupConsumerActive {
+            DispatchQueue.main.async(execute: {
+                if self.standalonePopupConsumerActive {
+                    self.popupView.callback(clocks)
+                }
+                if self.combinedPopupConsumerActive {
+                    self.portalView.callback(clocks)
+                }
+            })
+        }
         
+        guard self.standaloneConsumerActive else { return }
         self.menuBar.widgets.filter{ $0.isActive }.forEach { (w: SWidget) in
             switch w.item {
             case let widget as StackWidget: widget.setValues(widgetList)

@@ -195,11 +195,20 @@ public class CPU: Module {
     private func loadCallback(_ raw: CPU_Load?) {
         guard let value = raw, self.collecting else { return }
         
-        self.popupView.loadCallback(value)
-        self.portalView.callback(value)
-        self.notificationsView.loadCallback(value)
-        self.previewView.loadCallback(value)
+        if self.standalonePopupConsumerActive {
+            self.popupView.loadCallback(value)
+        }
+        if self.combinedPopupConsumerActive {
+            self.portalView.callback(value)
+        }
+        if self.standaloneConsumerActive {
+            self.notificationsView.loadCallback(value)
+        }
+        if self.settingsConsumerActive {
+            self.previewView.loadCallback(value)
+        }
         
+        guard self.standaloneConsumerActive else { return }
         self.menuBar.widgets.filter{ $0.isActive }.forEach { [self] (w: SWidget) in
             switch w.item {
             case let widget as Mini: widget.setValue(value.totalUsage)

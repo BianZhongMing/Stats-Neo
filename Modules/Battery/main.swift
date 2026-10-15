@@ -120,10 +120,17 @@ public class Battery: Module {
     private func usageCallback(_ raw: Battery_Usage?) {
         guard let value = raw, self.collecting else { return }
         
-        self.popupView.usageCallback(value)
-        self.portalView.loadCallback(value)
-        self.notificationsView.usageCallback(value)
+        if self.standalonePopupConsumerActive {
+            self.popupView.usageCallback(value)
+        }
+        if self.combinedPopupConsumerActive {
+            self.portalView.loadCallback(value)
+        }
+        if self.standaloneConsumerActive {
+            self.notificationsView.usageCallback(value)
+        }
         
+        guard self.standaloneConsumerActive else { return }
         self.menuBar.widgets.filter{ $0.isActive }.forEach { (w: SWidget) in
             switch w.item {
             case let widget as Mini:

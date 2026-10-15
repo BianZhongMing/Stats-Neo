@@ -190,6 +190,19 @@ public class Network: Module {
         self.usageReader = UsageReader(.network) { [weak self] value in
             self?.usageCallback(value)
         }
+        self.usageReader?.needsDetails = { [weak self] in
+            guard let self else { return false }
+            return self.standaloneConsumerActive || self.visibleDetailConsumerActive
+        }
+        self.usageReader?.needsProcessCounters = { [weak self] in
+            self?.standaloneConsumerActive ?? false
+        }
+        self.usageReader?.detailVisibilityChanged = { [weak self] visible in
+            guard visible, let self else { return }
+            if self.visibleDetailConsumerActive {
+                self.usageReader?.setRuntimeInterval(nil)
+            }
+        }
         self.popupView.locationPermissionAction = { [weak self] in
             self?.usageReader?.requestWiFiLocationAuthorization()
         }
@@ -252,12 +265,20 @@ public class Network: Module {
     
     private func usageCallback(_ raw: Network_Usage?) {
         guard let value = raw, self.collecting else { return }
-        
-        self.popupView.usageCallback(value)
-        self.portalView.usageCallback(value)
-        self.notificationsView.usageCallback(value)
-        self.previewView.usageCallback(value)
-        
+
+        if self.standalonePopupConsumerActive {
+            self.popupView.usageCallback(value)
+        }
+        if self.combinedPopupConsumerActive {
+            self.portalView.usageCallback(value)
+        }
+        if self.standaloneConsumerActive {
+            self.notificationsView.usageCallback(value)
+        }
+        if self.settingsConsumerActive {
+            self.previewView.usageCallback(value)
+        }
+
         var upload: Int64 = value.bandwidth.upload
         var download: Int64 = value.bandwidth.download
         if self.widgetActivationThresholdState {
@@ -270,12 +291,15 @@ public class Network: Module {
             }
         }
 
-        NotificationCenter.default.post(
-            name: .combinedNetworkSpeed,
-            object: nil,
-            userInfo: ["download": download, "upload": upload]
-        )
-        
+        if self.combinedMenuBarConsumerActive {
+            NotificationCenter.default.post(
+                name: .combinedNetworkSpeed,
+                object: nil,
+                userInfo: ["download": download, "upload": upload]
+            )
+        }
+
+        guard self.standaloneConsumerActive else { return }
         self.menuBar.widgets.filter{ $0.isActive }.forEach { (w: SWidget) in
             switch w.item {
             case let widget as SpeedWidget: widget.setValue(input: download, output: upload)

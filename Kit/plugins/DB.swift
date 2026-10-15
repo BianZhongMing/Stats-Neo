@@ -76,23 +76,25 @@ public class DB {
     
     public func insert(key: String, value: Codable, ts: Bool = true, force: Bool = false) {
         self.queue.sync { self._values[key] = value }
-        guard let blobData = try? JSONEncoder().encode(value), let str = String(data: blobData, encoding: .utf8) else { return }
-        
-        if ts {
-            self.lldb?.insert("\(key)@\(Date().currentTimeSeconds())", value: str)
-        }
-        
+
         let now = Date()
-        let shouldWrite: Bool = self.queue.sync {
-            if !force, let ts = self._writeTS[key], (now.timeIntervalSince1970-ts.timeIntervalSince1970) < 30 {
+        let shouldWriteLatest: Bool = self.queue.sync {
+            if !force, let ts = self._writeTS[key], now.timeIntervalSince(ts) < 30 {
                 return false
             }
             self._writeTS[key] = now
             return true
         }
-        guard shouldWrite else { return }
-        
-        self.lldb?.insert(key, value: str)
+        // Non-history readers can avoid serialization entirely while the latest-value write is throttled.
+        guard ts || shouldWriteLatest else { return }
+        guard let blobData = try? JSONEncoder().encode(value), let str = String(data: blobData, encoding: .utf8) else { return }
+
+        if ts {
+            self.lldb?.insert("\(key)@\(Date().currentTimeSeconds())", value: str)
+        }
+        if shouldWriteLatest {
+            self.lldb?.insert(key, value: str)
+        }
     }
     
     public func findOne<T: Decodable>(_ dynamicType: T.Type, key: String) -> T? {

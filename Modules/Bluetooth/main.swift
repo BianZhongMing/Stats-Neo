@@ -117,11 +117,18 @@ public class Bluetooth: Module {
         
         let active = value.filter{ $0.isPaired || ($0.isConnected && !$0.batteryLevel.isEmpty) }
         DispatchQueue.main.async(execute: {
-            self.popupView.batteryCallback(active)
-            self.settingsView.setList(active)
-            self.notificationsView.callback(active)
+            if self.standalonePopupConsumerActive {
+                self.popupView.batteryCallback(active)
+            }
+            if self.settingsConsumerActive {
+                self.settingsView.setList(active)
+            }
+            if self.standaloneConsumerActive {
+                self.notificationsView.callback(active)
+            }
         })
         
+        guard self.standaloneConsumerActive else { return }
         var list: [Stack_t] = []
         active.forEach { (d: BLEDevice) in
             if d.state {

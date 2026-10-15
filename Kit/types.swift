@@ -186,6 +186,52 @@ public let ReaderUpdateIntervals: [KeyValue_t] = [
     KeyValue_t(key: "30", value: "30 sec"),
     KeyValue_t(key: "60", value: "60 sec")
 ]
+
+public enum ReaderSamplingClass {
+    case regular
+    case network
+    case process
+    case clock
+}
+
+public enum EnergyMode: String {
+    case performance
+    case balanced
+    case lowPower
+
+    public static var selected: EnergyMode {
+        EnergyMode(rawValue: Store.shared.string(key: "CombinedModules_energyMode", defaultValue: EnergyMode.balanced.rawValue)) ?? .balanced
+    }
+
+    public static var effective: EnergyMode {
+        let selected = self.selected
+        guard selected == .balanced else { return selected }
+        if #available(macOS 12.0, *), ProcessInfo.processInfo.isLowPowerModeEnabled {
+            return .lowPower
+        }
+        return selected
+    }
+
+    public func interval(configured: Int, samplingClass: ReaderSamplingClass) -> Int {
+        let configured = max(1, configured)
+        switch (self, samplingClass) {
+        case (_, .clock): return configured
+        case (.performance, _): return configured
+        case (.balanced, .process): return max(configured, 3)
+        case (.balanced, _): return configured
+        case (.lowPower, .process): return max(configured, 10)
+        case (.lowPower, .network): return max(configured, 10)
+        case (.lowPower, .regular): return max(configured, 5)
+        }
+    }
+}
+
+public let EnergyModes: [KeyValue_t] = [
+    KeyValue_t(key: EnergyMode.performance.rawValue, value: localizedString("Real-time")),
+    KeyValue_t(key: EnergyMode.balanced.rawValue, value: localizedString("Balanced")),
+    KeyValue_t(key: EnergyMode.lowPower.rawValue, value: localizedString("Low power"))
+]
+
 public let NumbersOfProcesses: [Int] = [0, 3, 5, 8, 10, 15]
 
 public let NetworkReaders: [KeyValue_t] = [
@@ -312,6 +358,7 @@ public extension Notification.Name {
     static let widgetRearrange = Notification.Name("widgetRearrange")
     static let moduleRearrange = Notification.Name("moduleRearrange")
     static let combinedNetworkSpeed = Notification.Name("combinedNetworkSpeed")
+    static let energyModeChanged = Notification.Name("energyModeChanged")
     static let pause = Notification.Name("pause")
     static let toggleFanControl = Notification.Name("toggleFanControl")
     static let combinedModulesPopup = Notification.Name("combinedModulesPopup")

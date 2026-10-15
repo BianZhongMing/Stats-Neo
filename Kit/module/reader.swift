@@ -24,12 +24,16 @@ public protocol Reader_p: AnyObject {
     func start()
     func pause()
     func stop()
+    func readNow()
     
     func lock()
     func unlock()
     
     func initStoreValues(title: String)
     func setInterval(_ value: Int)
+    func setRuntimeInterval(_ value: Int?)
+    func setSamplingClass(_ value: ReaderSamplingClass)
+    func refreshEnergyMode()
     func sleepMode(state: Bool)
 }
 
@@ -56,6 +60,9 @@ open class Reader<T: Codable>: NSObject, ReaderInternal_p {
     
     public var interval: Double? = nil
     public var defaultInterval: Int = 1
+    private var configuredInterval: Int?
+    private var runtimeInterval: Int?
+    private var samplingClass: ReaderSamplingClass = .regular
     public var popup: Bool = false
     public var preview: Bool = false
     public var sleep: Bool = false
@@ -77,6 +84,9 @@ open class Reader<T: Codable>: NSObject, ReaderInternal_p {
         get { self.activeQueue.sync { self._active } }
         set { self.activeQueue.sync { self._active = newValue } }
     }
+
+    private let readStateQueue = DispatchQueue(label: "eu.exelban.readerReadState")
+    private var readInProgress = false
     
     private var lastDBWrite: Date? = nil
     
@@ -106,9 +116,10 @@ open class Reader<T: Codable>: NSObject, ReaderInternal_p {
     }
     
     public func initStoreValues(title: String) {
-        guard self.interval == nil else { return }
+        guard self.configuredInterval == nil else { return }
         let updateInterval = Store.shared.int(key: "\(title)_updateInterval", defaultValue: self.defaultInterval)
-        self.interval = Double(updateInterval)
+        self.configuredInterval = updateInterval
+        self.applyEffectiveInterval()
     }
     
     public func callback(_ value: T?) {
@@ -131,11 +142,30 @@ open class Reader<T: Codable>: NSObject, ReaderInternal_p {
     open func setup() {}
     open func terminate() {}
     
+    public func readNow() {
+        self.dispatchRead()
+    }
+
+    private func performRead() {
+        let shouldRead = self.readStateQueue.sync { () -> Bool in
+            if self.readInProgress { return false }
+            self.readInProgress = true
+            return true
+        }
+        guard shouldRead else { return }
+        defer { self.readStateQueue.sync { self.readInProgress = false } }
+        self.read()
+    }
+
+    private func dispatchRead() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            self?.performRead()
+        }
+    }
+
     open func start() {
         if (self.popup || self.preview || self.sleep) && self.locked {
-            DispatchQueue.global(qos: .background).async {
-                self.read()
-            }
+            self.dispatchRead()
             return
         }
         
@@ -148,7 +178,7 @@ open class Reader<T: Codable>: NSObject, ReaderInternal_p {
                 }
             } else if !self.initlizalized {
                 self.startNormalRepeater()
-                DispatchQueue.global(qos: .background).async { self.read() }
+                self.dispatchRead()
                 self.repeatTask?.start()
                 self.initlizalized = true
             } else {
@@ -178,9 +208,34 @@ open class Reader<T: Codable>: NSObject, ReaderInternal_p {
     }
     
     public func setInterval(_ value: Int) {
-        debug("Set update interval: \(value) sec", log: self.log)
-        self.interval = Double(value)
-        
+        self.configuredInterval = max(1, value)
+        self.applyEffectiveInterval()
+    }
+
+    public func setRuntimeInterval(_ value: Int?) {
+        self.runtimeInterval = value.map { max(1, $0) }
+        self.applyEffectiveInterval()
+    }
+
+    public func setSamplingClass(_ value: ReaderSamplingClass) {
+        self.samplingClass = value
+        self.applyEffectiveInterval()
+    }
+
+    public func refreshEnergyMode() {
+        self.runtimeInterval = nil
+        self.applyEffectiveInterval()
+    }
+
+    private func applyEffectiveInterval() {
+        let configured = self.configuredInterval ?? self.defaultInterval
+        let energyInterval = EnergyMode.effective.interval(configured: configured, samplingClass: self.samplingClass)
+        let effective = max(1, self.runtimeInterval ?? energyInterval)
+        guard self.interval != Double(effective) else { return }
+
+        debug("Set effective update interval: \(effective) sec", log: self.log)
+        self.interval = Double(effective)
+
         self.alignQueue.sync {
             if self.alignToSecondBoundary {
                 self.alignGeneration &+= 1
@@ -190,7 +245,7 @@ open class Reader<T: Codable>: NSObject, ReaderInternal_p {
                     self.startAlignedRepeater()
                 }
             } else {
-                self.repeatTask?.reset(seconds: value, restart: self.active)
+                self.repeatTask?.reset(seconds: effective, restart: self.active)
             }
         }
     }
@@ -215,7 +270,7 @@ open class Reader<T: Codable>: NSObject, ReaderInternal_p {
         }
         
         self.repeatTask = Repeater(seconds: Int(interval)) { [weak self] in
-            self?.read()
+            self?.performRead()
         }
     }
     
@@ -231,9 +286,9 @@ open class Reader<T: Codable>: NSObject, ReaderInternal_p {
         self.alignQueue.asyncAfter(deadline: .now() + self.delayToNextSecondBoundary()) { [weak self] in
             guard let self, self.alignGeneration == generation, self.repeatTask == nil else { return }
 
-            DispatchQueue.global(qos: .background).async { self.read() }
-            self.repeatTask = Repeater(seconds: Int(interval)) { [weak self] in
-                self?.read()
+            self.dispatchRead()
+            self.repeatTask = Repeater(seconds: Int(interval), group: 1) { [weak self] in
+                self?.performRead()
             }
             self.repeatTask?.start()
         }

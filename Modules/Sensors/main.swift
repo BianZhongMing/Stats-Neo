@@ -102,10 +102,17 @@ public class Sensors: Module {
     private func usageCallback(_ raw: Sensors_List?) {
         guard let value = raw, self.collecting else { return }
         
-        self.popupView.usageCallback(value.sensors)
-        self.portalView.usageCallback(value.sensors)
-        self.notificationsView.usageCallback(value.sensors)
+        if self.standalonePopupConsumerActive {
+            self.popupView.usageCallback(value.sensors)
+        }
+        if self.combinedPopupConsumerActive {
+            self.portalView.usageCallback(value.sensors)
+        }
+        if self.standaloneConsumerActive {
+            self.notificationsView.usageCallback(value.sensors)
+        }
         
+        guard self.standaloneConsumerActive else { return }
         let activeWidgets = self.menuBar.widgets.filter{ $0.isActive }
         self.sensorsReader?.sleepMode(state: activeWidgets.contains(where: {$0.item is Label}) && activeWidgets.count == 1)
         

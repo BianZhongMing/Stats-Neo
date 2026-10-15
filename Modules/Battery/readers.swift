@@ -244,6 +244,7 @@ public class ProcessReader: Reader<[TopProcess]> {
     
     public override func setup() {
         self.popup = true
+        self.setSamplingClass(.process)
     }
     
     public override func read() {
