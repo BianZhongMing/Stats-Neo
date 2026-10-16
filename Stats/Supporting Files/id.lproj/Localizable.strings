@@ -570,3 +570,19 @@
 "Login to System Stats to see your devices" = "Masuk ke System Stats untuk melihat perangkat Anda"; // qwen3.8:27b
 "Monitor HTTP, ICMP and custom endpoints" = "Pantau HTTP, ICMP dan endpoint kustom"; // qwen3.8:27b
 "Monitor and control your Macs from anywhere. Sign in to your System Stats account to see all your devices and hosts in one place." = "Pantau dan kendalikan Mac Anda dari mana saja. Masuk ke akun System Stats Anda untuk melihat semua perangkat dan host Anda di satu tempat."; // qwen3.8:27b
+
+// Combined fallback strings
+"Appearance" = "Appearance";
+"Balanced" = "Balanced";
+"Combined" = "Combined";
+"Combined page subtitle" = "Combined runs independently from the other modules. Tick the components to display, drag rows to reorder, and click the menu bar item to open the overview; the corresponding module tabs do not need to be enabled.";
+"Components" = "Components";
+"Enable %@ in its own tab to show it in the combined item" = "Enable %@ in its own tab to show it in the combined item";
+"Enable this module first" = "Enable this module first";
+"Energy mode" = "Energy mode";
+"Low power" = "Low power";
+"Module is disabled" = "Module is disabled";
+"Open Combined settings" = "Open Combined settings";
+"Real-time" = "Real-time";
+"Show network speed" = "Show network speed in menu bar";
+"Time to full" = "Time to full";

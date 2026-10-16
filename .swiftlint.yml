@@ -51,6 +51,7 @@ identifier_name:
     - expires_in
     - NetworkSpeedUnitAuto
     - NetworkSpeedUnits
+    - EnergyModes
 
 line_length: 200
 
