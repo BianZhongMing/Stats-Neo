@@ -41,10 +41,10 @@
 
 Download the latest release:
 
-- [Stats Neo.dmg](https://github.com/BianZhongMing/Stats-Neo/releases/latest/download/Stats%20Neo.dmg)
-- [Stats Neo.app.zip](https://github.com/BianZhongMing/Stats-Neo/releases/latest/download/Stats%20Neo.app.zip)
+- [Stats-Neo.dmg](https://github.com/BianZhongMing/Stats-Neo/releases/latest/download/Stats-Neo.dmg)
+- [Stats-Neo.app.zip](https://github.com/BianZhongMing/Stats-Neo/releases/latest/download/Stats-Neo.app.zip)
 
-Open `Stats Neo.dmg` and drag **Stats Neo.app** to Applications, or extract the ZIP and move the app manually.
+Open `Stats-Neo.dmg` and drag **Stats Neo.app** to Applications, or extract the ZIP and move the app manually.
 
 > [!NOTE]
 > Release assets may use ad-hoc signing when Apple distribution credentials are unavailable. On first launch, macOS may require approval in **System Settings → Privacy & Security**.

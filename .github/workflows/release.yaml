@@ -59,12 +59,12 @@ jobs:
 
       - name: Prepare notarization archive
         if: inputs.dry_run != true && env.HAS_NOTARIZATION == 'true'
-        run: ditto -c -k --keepParent "build/Stats Neo.app" "build/Stats Neo.app.zip"
+        run: ditto -c -k --keepParent "build/Stats Neo.app" "build/Stats-Neo.app.zip"
 
       - name: Notarize
         if: inputs.dry_run != true && env.HAS_NOTARIZATION == 'true'
         run: |
-          xcrun notarytool submit "build/Stats Neo.app.zip" \
+          xcrun notarytool submit "build/Stats-Neo.app.zip" \
             --apple-id "${{ secrets.APPLE_ID }}" \
             --team-id "${{ secrets.APPLE_TEAM_ID }}" \
             --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
@@ -87,7 +87,7 @@ jobs:
         run: spctl -a -t exec -vvv "build/Stats Neo.app"
 
       - name: Package ZIP
-        run: ditto -c -k --sequesterRsrc --keepParent "build/Stats Neo.app" "build/Stats Neo.app.zip"
+        run: ditto -c -k --sequesterRsrc --keepParent "build/Stats Neo.app" "build/Stats-Neo.app.zip"
 
       - name: DMG
         run: |
@@ -102,7 +102,7 @@ jobs:
             --hide-extension "Stats Neo.app" \
             --app-drop-link 375 175 \
             --no-internet-enable \
-            "build/Stats Neo.dmg" "build/Stats Neo.app"
+            "build/Stats-Neo.dmg" "build/Stats Neo.app"
           rm -rf ./create-dmg
 
       - name: Upload packages
@@ -111,14 +111,14 @@ jobs:
         with:
           name: Stats-Neo-packages
           path: |
-            build/Stats Neo.dmg
-            build/Stats Neo.app.zip
+            build/Stats-Neo.dmg
+            build/Stats-Neo.app.zip
 
       - name: Publish
         if: inputs.dry_run != true
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/Stats Neo.dmg
-            build/Stats Neo.app.zip
+            build/Stats-Neo.dmg
+            build/Stats-Neo.app.zip
           body_path: ./RELEASE_NOTES.md

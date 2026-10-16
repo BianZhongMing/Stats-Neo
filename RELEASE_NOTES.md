@@ -5,7 +5,7 @@ Stats Neo 1.0.0 is the first formal release of the independent Stats Neo line, d
 ## New identity
 
 - User-facing application name changed to **Stats Neo**.
-- Release assets changed to `Stats Neo.dmg` and `Stats Neo.app.zip`.
+- Release assets changed to `Stats-Neo.dmg` and `Stats-Neo.app.zip`.
 - Repository, update checks, release notes, support, and bug-report links point to `BianZhongMing/Stats-Neo`.
 - The original Bundle ID and settings domain are retained so existing Stats-derived preferences continue to work after upgrading.
 

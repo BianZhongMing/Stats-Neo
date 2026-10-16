@@ -76,15 +76,15 @@ elif [[ "$CUSTOM_APP_DST" -eq 0 && -d "$HOME/Applications/Stats.app" ]]; then
     APP="$HOME/Applications/Stats.app"
 else
     if [[ "$VERSION" == "latest" ]]; then
-        URL="https://github.com/$REPO/releases/latest/download/Stats%20Neo.dmg"
+        URL="https://github.com/$REPO/releases/latest/download/Stats-Neo.dmg"
     else
-        URL="https://github.com/$REPO/releases/download/v$VERSION/Stats%20Neo.dmg"
+        URL="https://github.com/$REPO/releases/download/v$VERSION/Stats-Neo.dmg"
     fi
     echo "Downloading Stats Neo ($VERSION)..."
-    /usr/bin/curl -fL --retry 3 -o "$TMP/Stats Neo.dmg" "$URL"
+    /usr/bin/curl -fL --retry 3 -o "$TMP/Stats-Neo.dmg" "$URL"
     MOUNT="$TMP/mount"
     /bin/mkdir -p "$MOUNT"
-    /usr/bin/hdiutil attach -nobrowse -noautoopen -quiet -readonly -mountpoint "$MOUNT" "$TMP/Stats Neo.dmg"
+    /usr/bin/hdiutil attach -nobrowse -noautoopen -quiet -readonly -mountpoint "$MOUNT" "$TMP/Stats-Neo.dmg"
 
     DEST="$(dirname "$APP_DST")"
     INSTALL_PARENT="$DEST"

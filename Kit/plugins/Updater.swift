@@ -128,7 +128,7 @@ public class Updater {
                     completion(nil, "parse json")
                     return
                 }
-                let preferredName = "\(self.appName).dmg"
+                let preferredName = "Stats-Neo.dmg"
                 let asset = assets.first(where: { ($0["name"] as? String) == preferredName }) ??
                     assets.first(where: { ($0["name"] as? String)?.lowercased().hasSuffix(".dmg") == true })
                 guard let downloadURL = asset?["browser_download_url"] as? String else {
