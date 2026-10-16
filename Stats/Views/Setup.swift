@@ -47,6 +47,7 @@ internal class SetupWindow: NSWindow, NSWindowDelegate {
     }
     
     internal func show() {
+        showApplicationInDock()
         self.setIsVisible(true)
         NSApp.activate(ignoringOtherApps: true)
         self.makeKeyAndOrderFront(nil)
@@ -62,6 +63,7 @@ internal class SetupWindow: NSWindow, NSWindowDelegate {
         let onClose = self.onClose
         DispatchQueue.main.async {
             onClose?()
+            hideApplicationFromDockIfNeeded()
         }
     }
     

@@ -48,6 +48,7 @@ internal class SupportWindow: NSWindow, NSWindowDelegate {
         let onClose = self.onClose
         DispatchQueue.main.async {
             onClose?()
+            hideApplicationFromDockIfNeeded()
         }
     }
     
@@ -63,6 +64,7 @@ internal class SupportWindow: NSWindow, NSWindowDelegate {
     }
     
     internal func show() {
+        showApplicationInDock()
         self.setIsVisible(true)
         self.orderFrontRegardless()
     }

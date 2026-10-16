@@ -44,6 +44,7 @@ internal class UpdateWindow: NSWindow, NSWindowDelegate {
     }
     
     internal func open(_ v: version_s, settingButton: Bool = false) {
+        showApplicationInDock()
         if !self.isVisible || settingButton {
             self.setIsVisible(true)
             self.makeKeyAndOrderFront(nil)
@@ -55,6 +56,7 @@ internal class UpdateWindow: NSWindow, NSWindowDelegate {
         let onClose = self.onClose
         DispatchQueue.main.async {
             onClose?()
+            hideApplicationFromDockIfNeeded()
         }
     }
     

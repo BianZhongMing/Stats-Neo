@@ -110,10 +110,14 @@ class SettingsWindow: NSWindow, NSWindowDelegate, NSToolbarDelegate {
         let onClose = self.onClose
         DispatchQueue.main.async {
             onClose?()
+            hideApplicationFromDockIfNeeded()
         }
     }
 
     override func setIsVisible(_ flag: Bool) {
+        if flag {
+            showApplicationInDock()
+        }
         super.setIsVisible(flag)
         self.updateReaderVisibility(visible: flag && !self.isMiniaturized)
     }

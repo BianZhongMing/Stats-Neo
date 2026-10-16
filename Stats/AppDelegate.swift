@@ -38,6 +38,41 @@ var modules: [Module] = [
     Remote()
 ]
 
+private func isApplicationPage(_ window: NSWindow) -> Bool {
+    window is SettingsWindow ||
+    window is UpdateWindow ||
+    window is SetupWindow ||
+    window is SupportWindow
+}
+
+internal func showApplicationInDock() {
+    let show = {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    if Thread.isMainThread {
+        show()
+    } else {
+        DispatchQueue.main.async(execute: show)
+    }
+}
+
+internal func hideApplicationFromDockIfNeeded() {
+    let hide = {
+        let hasVisiblePage = NSApp.windows.contains { window in
+            isApplicationPage(window) && window.isVisible
+        }
+        if !hasVisiblePage {
+            NSApp.setActivationPolicy(.accessory)
+        }
+    }
+    if Thread.isMainThread {
+        hide()
+    } else {
+        DispatchQueue.main.async(execute: hide)
+    }
+}
+
 @main
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     internal var settingsWindow: SettingsWindow?
