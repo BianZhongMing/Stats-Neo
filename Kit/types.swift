@@ -358,6 +358,7 @@ public extension Notification.Name {
     static let widgetRearrange = Notification.Name("widgetRearrange")
     static let moduleRearrange = Notification.Name("moduleRearrange")
     static let combinedNetworkSpeed = Notification.Name("combinedNetworkSpeed")
+    static let combinedAppearanceChanged = Notification.Name("combinedAppearanceChanged")
     static let energyModeChanged = Notification.Name("energyModeChanged")
     static let pause = Notification.Name("pause")
     static let toggleFanControl = Notification.Name("toggleFanControl")

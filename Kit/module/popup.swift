@@ -110,6 +110,9 @@ public class PopupWindow: NSWindow, NSWindowDelegate {
         self.animationBehavior = .default
         self.collectionBehavior = .moveToActiveSpace
         self.backgroundColor = .clear
+        if module == .combined {
+            self.isOpaque = false
+        }
         self.hasShadow = true
         self.setIsVisible(false)
         self.delegate = self
@@ -135,11 +138,14 @@ internal class PopupViewController: NSViewController {
     private var popup: PopupView
     
     public init(module: ModuleType) {
+        let contentWidth: CGFloat = module == .combined ? CombinedPortalStyle.contentWidth : Constants.Popup.width
+        let horizontalMargin: CGFloat = module == .combined ? 8 : Constants.Popup.margins
+        let headerHeight: CGFloat = module == .combined ? 56 : Constants.Popup.headerHeight
         self.popup = PopupView(frame: NSRect(
             x: 0,
             y: 0,
-            width: Constants.Popup.width + (Constants.Popup.margins * 2),
-            height: Constants.Popup.height+Constants.Popup.headerHeight
+            width: contentWidth + (horizontalMargin * 2),
+            height: Constants.Popup.height + headerHeight
         ), module: module)
         super.init(nibName: nil, bundle: nil)
     }
@@ -181,6 +187,9 @@ internal class PopupViewController: NSViewController {
 
 internal class PopupView: NSView {
     private var view: Popup_p? = nil
+    private let module: ModuleType
+    private let contentMargin: CGFloat
+    private let headerHeight: CGFloat
     
     private var foreground: NSVisualEffectView
     private var background: NSView
@@ -195,28 +204,33 @@ internal class PopupView: NSView {
     private var containerHeight: CGFloat?
     
     init(frame: NSRect, module: ModuleType) {
+        self.module = module
+        self.contentMargin = module == .combined ? 8 : Constants.Popup.margins
+        self.headerHeight = module == .combined ? 56 : Constants.Popup.headerHeight
         self.header = HeaderView(frame: NSRect(
             x: 0,
-            y: frame.height - Constants.Popup.headerHeight,
+            y: frame.height - self.headerHeight,
             width: frame.width,
-            height: Constants.Popup.headerHeight
+            height: self.headerHeight
         ), module: module)
         self.body = NSScrollView(frame: NSRect(
-            x: Constants.Popup.margins,
-            y: Constants.Popup.margins,
-            width: frame.width - Constants.Popup.margins*2,
-            height: frame.height - self.header.frame.height - Constants.Popup.margins*2
+            x: self.contentMargin,
+            y: self.contentMargin,
+            width: frame.width - self.contentMargin*2,
+            height: frame.height - self.header.frame.height - self.contentMargin*2
         ))
         self.windowHeight = NSScreen.main?.visibleFrame.height
         self.containerHeight = self.body.documentView?.frame.height
         
         self.foreground = NSVisualEffectView(frame: frame)
-        self.foreground.material = .titlebar
+        self.foreground.material = module == .combined ? .popover : .titlebar
         self.foreground.blendingMode = .behindWindow
         self.foreground.state = .active
         self.foreground.wantsLayer = true
-        self.foreground.layer?.backgroundColor = NSColor.red.cgColor
-        self.foreground.layer?.cornerRadius = 6
+        self.foreground.layer?.backgroundColor = NSColor.clear.cgColor
+        self.foreground.layer?.cornerRadius = module == .combined ? 16 : 6
+        self.foreground.layer?.cornerCurve = .continuous
+        self.foreground.layer?.masksToBounds = true
         
         self.background = NSView(frame: frame)
         self.background.wantsLayer = true
@@ -231,6 +245,16 @@ internal class PopupView: NSView {
         self.body.hasHorizontalScroller = false
         self.body.autohidesScrollers = true
         self.body.horizontalScrollElasticity = .none
+
+        if self.module == .combined {
+            self.applyCombinedAppearance()
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(self.combinedAppearanceChanged),
+                name: .combinedAppearanceChanged,
+                object: nil
+            )
+        }
         
         self.addSubview(self.foreground, positioned: .below, relativeTo: .none)
         self.addSubview(self.header)
@@ -240,9 +264,52 @@ internal class PopupView: NSView {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    deinit {
+        if self.module == .combined {
+            NotificationCenter.default.removeObserver(self, name: .combinedAppearanceChanged, object: nil)
+        }
+    }
+
+    @objc private func combinedAppearanceChanged() {
+        self.applyCombinedAppearance()
+    }
+
+    private func applyCombinedAppearance() {
+        let value = Store.shared.string(key: "CombinedModules_appearance", defaultValue: CombinedAppearance.system.rawValue)
+        self.appearance = CombinedAppearance(rawValue: value)?.appearance
+        self.invalidateAppearance(in: self)
+        self.needsDisplay = true
+        self.displayIfNeeded()
+
+        // Applying a forced appearance while the popup is hidden does not reliably invalidate
+        // every descendant's backing store. Repeat on the next run-loop turn so custom-drawn
+        // views (notably the battery status badge) render entirely in the selected appearance.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.invalidateAppearance(in: self)
+            self.displayIfNeeded()
+        }
+    }
+
+    private func invalidateAppearance(in view: NSView) {
+        view.needsDisplay = true
+        view.layer?.setNeedsDisplay()
+        view.subviews.forEach { self.invalidateAppearance(in: $0) }
+    }
     
     override func updateLayer() {
-        self.background.layer?.backgroundColor = self.isDarkMode ? .clear : NSColor.white.cgColor
+        if self.module == .combined {
+            self.background.layer?.backgroundColor = (self.isDarkMode
+                ? NSColor(red: 29/255, green: 35/255, blue: 58/255, alpha: 0.34)
+                : NSColor(red: 238/255, green: 243/255, blue: 252/255, alpha: 0.28)).cgColor
+            self.background.layer?.cornerRadius = 16
+            self.background.layer?.cornerCurve = .continuous
+            self.background.layer?.borderWidth = 0.6
+            self.background.layer?.borderColor = NSColor.white.withAlphaComponent(self.isDarkMode ? 0.16 : 0.38).cgColor
+        } else {
+            self.background.layer?.backgroundColor = self.isDarkMode ? .clear : NSColor.white.cgColor
+        }
     }
     
     fileprivate func setView(_ view: Popup_p?) {
@@ -250,8 +317,8 @@ internal class PopupView: NSView {
         
         var isScrollVisible: Bool = false
         var size: NSSize = NSSize(
-            width: (view?.frame.width ?? Constants.Popup.width) + (Constants.Popup.margins*2),
-            height: (view?.frame.height ?? 0) + Constants.Popup.headerHeight + (Constants.Popup.margins*2)
+            width: (view?.frame.width ?? Constants.Popup.width) + (self.contentMargin*2),
+            height: (view?.frame.height ?? 0) + self.headerHeight + (self.contentMargin*2)
         )
         
         self.windowHeight = NSScreen.main?.visibleFrame.height // for height recalculate when appear/disappear
@@ -268,7 +335,7 @@ internal class PopupView: NSView {
         self.foreground.setFrameSize(size)
         self.background.setFrameSize(size)
         self.resizeBody(size, scrollVisible: isScrollVisible)
-        self.header.setFrameOrigin(NSPoint(x: 0, y: size.height - Constants.Popup.headerHeight))
+        self.header.setFrameOrigin(NSPoint(x: 0, y: size.height - self.headerHeight))
         
         if let view = view {
             self.body.documentView = view
@@ -310,8 +377,8 @@ internal class PopupView: NSView {
     private func recalculateHeight(_ size: NSSize) {
         var isScrollVisible: Bool = false
         var windowSize: NSSize = NSSize(
-            width: size.width + (Constants.Popup.margins*2),
-            height: size.height + Constants.Popup.headerHeight + (Constants.Popup.margins*2)
+            width: size.width + (self.contentMargin*2),
+            height: size.height + self.headerHeight + (self.contentMargin*2)
         )
         let h0 = self.containerHeight ?? 0
         
@@ -331,7 +398,7 @@ internal class PopupView: NSView {
         self.resizeBody(windowSize, scrollVisible: isScrollVisible)
         self.header.setFrameOrigin(NSPoint(
             x: self.header.frame.origin.x,
-            y: self.body.frame.height + (Constants.Popup.margins*2)
+            y: self.body.frame.height + (self.contentMargin*2)
         ))
         
         if let documentView = self.body.documentView {
@@ -347,10 +414,10 @@ internal class PopupView: NSView {
         let offset: CGFloat = scrollVisible ? 20 : 0
         let isRTL = self.body.userInterfaceLayoutDirection == .rightToLeft
         self.body.frame = NSRect(
-            x: Constants.Popup.margins - (isRTL ? offset : 0),
-            y: Constants.Popup.margins,
-            width: windowSize.width - (Constants.Popup.margins*2) + offset,
-            height: windowSize.height - Constants.Popup.headerHeight - (Constants.Popup.margins*2)
+            x: self.contentMargin - (isRTL ? offset : 0),
+            y: self.contentMargin,
+            width: windowSize.width - (self.contentMargin*2) + offset,
+            height: windowSize.height - self.headerHeight - (self.contentMargin*2)
         )
     }
 }
@@ -389,7 +456,12 @@ internal class HeaderView: NSStackView {
         self.activityButton = activity
         self.setupActionButton()
         
-        let title = NSTextField(frame: NSRect(x: 0, y: 0, width: frame.width/2, height: 18))
+        let title = NSTextField(frame: NSRect(
+            x: 0,
+            y: 0,
+            width: frame.width/2,
+            height: self.module == .combined ? 20 : 18
+        ))
         title.isEditable = false
         title.isSelectable = false
         title.isBezeled = false
@@ -398,14 +470,26 @@ internal class HeaderView: NSStackView {
         title.backgroundColor = .clear
         title.canDrawSubviewsIntoLayer = true
         title.alignment = .center
-        // The combined panel uses the app name as its title, so it is rendered more compact and less prominent.
-        if self.module == .combined {
-            title.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
-        } else {
-            title.font = NSFont.systemFont(ofSize: 16, weight: .regular)
-        }
+        title.font = NSFont.systemFont(ofSize: 16, weight: self.module == .combined ? .semibold : .regular)
         title.stringValue = ""
         self.titleView = title
+
+        let centerView: NSView
+        if self.module == .combined {
+            let titleContainer = NSStackView()
+            titleContainer.orientation = .vertical
+            titleContainer.alignment = .centerX
+            titleContainer.spacing = 1
+            titleContainer.addArrangedSubview(title)
+            let subtitle = NSTextField(labelWithString: "COMBINED")
+            subtitle.font = NSFont.systemFont(ofSize: 8.5, weight: .medium)
+            subtitle.textColor = .tertiaryLabelColor
+            subtitle.alignment = .center
+            titleContainer.addArrangedSubview(subtitle)
+            centerView = titleContainer
+        } else {
+            centerView = title
+        }
         
         let settings = NSButtonWithPadding()
         settings.frame = CGRect(x: 0, y: 0, width: 24, height: self.frame.height)
@@ -421,12 +505,18 @@ internal class HeaderView: NSStackView {
         settings.toolTip = localizedString("Open module")
         settings.focusRingType = .none
         
+        if self.module == .combined {
+            activity.imageScaling = .scaleProportionallyDown
+            settings.imageScaling = .scaleProportionallyDown
+            settings.contentTintColor = .systemPurple
+        }
+
         self.addArrangedSubview(activity)
-        self.addArrangedSubview(title)
+        self.addArrangedSubview(centerView)
         self.addArrangedSubview(settings)
         
         NSLayoutConstraint.activate([
-            title.widthAnchor.constraint(
+            centerView.widthAnchor.constraint(
                 equalToConstant: self.frame.width - activity.intrinsicContentSize.width - settings.intrinsicContentSize.width
             )
         ])
@@ -464,7 +554,8 @@ internal class HeaderView: NSStackView {
         }
         
         button.action = #selector(self.openActivityMonitor)
-        button.image = iconFromSymbol(name: "chart.bar.fill", scale: .medium)
+        button.image = iconFromSymbol(name: self.module == .combined ? "chart.bar.xaxis" : "chart.bar.fill", scale: self.module == .combined ? .large : .medium)
+        button.contentTintColor = self.module == .combined ? .controlAccentColor : .lightGray
         button.toolTip = localizedString("Open Activity Monitor")
     }
     

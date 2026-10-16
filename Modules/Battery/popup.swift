@@ -418,12 +418,13 @@ internal class Popup: PopupWrapper {
     }
 }
 
-internal class BatteryView: NSView {
+public final class BatteryView: NSView {
     private var percentage: Double = 0
     private var connected: Bool = false
     private var charging: Bool = false
     private var optimizedCharging: Bool = false
     private var charged: Bool = false
+    private var hasValue: Bool = false
     private let showsPercentage: Bool
     private let showsStatusBadge: Bool
     
@@ -442,11 +443,21 @@ internal class BatteryView: NSView {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    public override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        self.needsDisplay = true
+        self.layer?.setNeedsDisplay()
+    }
     
     public override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        // BatteryView is transparent. Clear the complete backing store before drawing a new
+        // state; otherwise the initial 0% warning badge can remain underneath the first
+        // charging badge and appear as a red/green split until an appearance switch.
+        ctx.clear(self.bounds)
         
         let scale: CGFloat = Swift.min(self.frame.width/130, self.frame.height/60, 1)
         let w: CGFloat = 130 * scale
@@ -533,7 +544,7 @@ internal class BatteryView: NSView {
             value.draw(in: rect, withAttributes: attributes)
         }
 
-        if self.showsStatusBadge {
+        if self.showsStatusBadge && self.hasValue {
             self.drawStatusBadge(scale: scale, batteryFrame: batteryFrame)
         } else if self.connected {
             let center = CGPoint(
@@ -596,9 +607,17 @@ internal class BatteryView: NSView {
         guard let symbolName else { return }
 
         let radius = 10 * scale
-        let center = CGPoint(
+        let margin = Swift.max(1, 1.5 * scale)
+        let desiredCenter = CGPoint(
             x: batteryFrame.bounds.maxX - (8 * scale),
             y: batteryFrame.bounds.maxY - (2 * scale)
+        )
+        // The badge intentionally overlaps the battery outline, but must remain completely
+        // inside BatteryView. Compact Combined layouts scale the battery below 60 pt high;
+        // without clamping, every badge is clipped at the top/right edge.
+        let center = CGPoint(
+            x: Swift.min(Swift.max(desiredCenter.x, self.bounds.minX + radius + margin), self.bounds.maxX - radius - margin),
+            y: Swift.min(Swift.max(desiredCenter.y, self.bounds.minY + radius + margin), self.bounds.maxY - radius - margin)
         )
         let circle = NSBezierPath(ovalIn: NSRect(
             x: center.x - radius,
@@ -630,7 +649,8 @@ internal class BatteryView: NSView {
         optimizedCharging: Bool = false,
         charged: Bool = false
     ) {
-        if self.percentage == value &&
+        if self.hasValue &&
+            self.percentage == value &&
             self.connected == connected &&
             self.charging == charging &&
             self.optimizedCharging == optimizedCharging &&
@@ -643,6 +663,7 @@ internal class BatteryView: NSView {
         self.charging = charging
         self.optimizedCharging = optimizedCharging
         self.charged = charged
+        self.hasValue = true
         
         DispatchQueue.main.async(execute: {
             self.display()

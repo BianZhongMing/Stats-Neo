@@ -46,7 +46,7 @@ internal class CombinedView: NSObject, NSGestureRecognizerDelegate {
             }
         }
 
-        self.popup = PopupWindow(title: "Stats", module: .combined, view: Popup()) { [weak self] state in
+        self.popup = PopupWindow(title: "Stats Neo", module: .combined, view: Popup()) { [weak self] state in
             self?.visibilityCallback(state)
         }
 
@@ -187,12 +187,12 @@ private class Popup: NSStackView, Popup_p {
     init() {
         self.keyboardShortcut = Store.shared.array(key: "CombinedModules_popup_keyboardShortcut", defaultValue: []) as? [UInt16] ?? []
 
-        super.init(frame: NSRect(x: 0, y: 0, width: Constants.Popup.width, height: 0))
+        super.init(frame: NSRect(x: 0, y: 0, width: CombinedPortalStyle.contentWidth, height: 0))
 
         self.orientation = .vertical
         self.distribution = .fill
         self.alignment = .width
-        self.spacing = Constants.Popup.spacing
+        self.spacing = 4
 
         self.reinit()
 
@@ -221,9 +221,16 @@ private class Popup: NSStackView, Popup_p {
 
         let availableModules = modules.filter({ $0.combinedPanelActive }).sorted(by: { $0.combinedPosition < $1.combinedPosition })
         var modulesHeight: CGFloat = 0
-        availableModules.forEach { (m: Module) in
+        availableModules.enumerated().forEach { index, m in
             if let p = m.portal {
                 modulesHeight += p.height
+                if index > 0 {
+                    modulesHeight += (self.spacing * 2) + 1
+                    let separator = CombinedPortalSeparator()
+                    separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
+                    self.addArrangedSubview(separator)
+                    separator.widthAnchor.constraint(equalTo: self.widthAnchor).isActive = true
+                }
                 self.addArrangedSubview(p)
                 // NSStackView `.width` alignment is unreliable on the current SDK. Explicitly
                 // pin every portal to the Combined panel width so narrower scrollable content
@@ -232,7 +239,7 @@ private class Popup: NSStackView, Popup_p {
             }
         }
 
-        let h = max(0, modulesHeight + (CGFloat(availableModules.count - 1) * self.spacing))
+        let h = max(0, modulesHeight)
         self.setFrameSize(NSSize(width: self.frame.width, height: h))
         self.sizeCallback?(self.frame.size)
     }
@@ -257,9 +264,26 @@ internal class CombinedSettings: NSStackView {
         get { EnergyMode.selected }
         set { Store.shared.set(key: "CombinedModules_energyMode", value: newValue.rawValue) }
     }
+    private var combinedAppearance: CombinedAppearance {
+        get {
+            CombinedAppearance(rawValue: Store.shared.string(
+                key: "CombinedModules_appearance",
+                defaultValue: CombinedAppearance.system.rawValue
+            )) ?? .system
+        }
+        set { Store.shared.set(key: "CombinedModules_appearance", value: newValue.rawValue) }
+    }
+    private var appearanceItems: [KeyValue_p] {
+        let chinese = Locale.current.languageCode == "zh"
+        return [
+            KeyValue_t(key: CombinedAppearance.system.rawValue, value: chinese ? "跟随系统" : "Follow system"),
+            KeyValue_t(key: CombinedAppearance.light.rawValue, value: chinese ? "浅色" : "Light"),
+            KeyValue_t(key: CombinedAppearance.dark.rawValue, value: chinese ? "深色" : "Dark")
+        ]
+    }
 
-    private var optionsSection: PreferencesSection?
-    private var listSection: PreferencesSection?
+    private var optionsCard: NSStackView?
+    private var componentsCard: NSStackView?
     private let moduleList = CombinedModuleListView()
 
     init() {
@@ -267,39 +291,55 @@ internal class CombinedSettings: NSStackView {
         self.translatesAutoresizingMaskIntoConstraints = false
 
         let scrollView = ScrollableStackView(orientation: .vertical)
-        scrollView.stackView.edgeInsets = NSEdgeInsets(
-            top: 0,
-            left: Constants.Settings.margin,
-            bottom: Constants.Settings.margin,
-            right: Constants.Settings.margin
-        )
-        scrollView.stackView.spacing = Constants.Settings.margin
+        scrollView.stackView.edgeInsets = NSEdgeInsets(top: 8, left: 30, bottom: 24, right: 30)
+        scrollView.stackView.spacing = 18
 
-        scrollView.stackView.addArrangedSubview(self.headerView())
+        let header = self.headerView()
+        scrollView.stackView.addArrangedSubview(header)
 
-        self.optionsSection = PreferencesSection([
-            PreferencesRow(localizedString("Show network speed"), component: switchView(
-                action: #selector(self.toggleNetwork),
-                state: self.showNetwork
-            )),
-            PreferencesRow(localizedString("Energy mode"), component: selectView(
-                action: #selector(self.changeEnergyMode),
-                items: EnergyModes,
-                selected: self.energyMode.rawValue
-            ))
-        ])
-        scrollView.stackView.addArrangedSubview(self.optionsSection!)
+        let options = self.cardView()
+        options.addArrangedSubview(self.optionRow(
+            title: localizedString("Show network speed"),
+            component: switchView(action: #selector(self.toggleNetwork), state: self.showNetwork)
+        ))
+        options.addArrangedSubview(self.separatorView())
+        options.addArrangedSubview(self.optionRow(
+            title: localizedString("Energy mode"),
+            component: selectView(action: #selector(self.changeEnergyMode), items: EnergyModes, selected: self.energyMode.rawValue)
+        ))
+        options.addArrangedSubview(self.separatorView())
+        options.addArrangedSubview(self.optionRow(
+            title: localizedString("Appearance"),
+            component: selectView(
+                action: #selector(self.changeCombinedAppearance),
+                items: self.appearanceItems,
+                selected: self.combinedAppearance.rawValue
+            )
+        ))
+        self.optionsCard = options
+        scrollView.stackView.addArrangedSubview(options)
 
-        self.listSection = PreferencesSection(title: localizedString("Components"))
-        self.listSection!.add(self.moduleList)
-        scrollView.stackView.addArrangedSubview(self.listSection!)
-        // NOTE: NSStackView.alignment = .width is rejected on this SDK (it collapses to
-        // .notAnAttribute). Pin explicit widths instead so the card and the list fill the
-        // scroll content width and every row shares one aligned column grid.
-        let m = Constants.Settings.margin
-        self.listSection!.widthAnchor.constraint(equalTo: scrollView.stackView.widthAnchor, constant: -2 * m).isActive = true
-        // The card container insets by one margin on each side; the module list sits inside it.
-        self.moduleList.widthAnchor.constraint(equalTo: self.listSection!.widthAnchor, constant: -2 * m).isActive = true
+        let componentsHeader = NSStackView()
+        componentsHeader.orientation = .horizontal
+        componentsHeader.alignment = .centerY
+        componentsHeader.edgeInsets = NSEdgeInsets(top: 0, left: 4, bottom: 0, right: 4)
+        let componentsTitle = NSTextField(labelWithString: localizedString("Components"))
+        componentsTitle.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
+        componentsHeader.addArrangedSubview(componentsTitle)
+        componentsHeader.addArrangedSubview(NSView())
+        scrollView.stackView.addArrangedSubview(componentsHeader)
+
+        let components = self.cardView(insets: NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12))
+        components.addArrangedSubview(self.moduleList)
+        self.componentsCard = components
+        scrollView.stackView.addArrangedSubview(components)
+
+        let contentWidth = Constants.Settings.width - 60
+        header.widthAnchor.constraint(equalToConstant: contentWidth).isActive = true
+        options.widthAnchor.constraint(equalToConstant: contentWidth).isActive = true
+        componentsHeader.widthAnchor.constraint(equalToConstant: contentWidth).isActive = true
+        components.widthAnchor.constraint(equalToConstant: contentWidth).isActive = true
+        self.moduleList.widthAnchor.constraint(equalTo: components.widthAnchor, constant: -24).isActive = true
 
         self.addArrangedSubview(scrollView)
 
@@ -318,28 +358,58 @@ internal class CombinedSettings: NSStackView {
         let view = NSStackView()
         view.orientation = .vertical
         view.alignment = .leading
-        view.spacing = 3
-        view.edgeInsets = NSEdgeInsets(top: 10, left: 4, bottom: 6, right: 4)
+        view.spacing = 6
+        view.edgeInsets = NSEdgeInsets(top: 8, left: 4, bottom: 2, right: 4)
 
         let title = NSTextField(labelWithString: localizedString("Combined modules"))
-        title.font = NSFont.systemFont(ofSize: 16, weight: .bold)
+        title.font = NSFont.systemFont(ofSize: 18, weight: .bold)
         title.textColor = .labelColor
 
         let subtitle = NSTextField(labelWithString: localizedString("Combined page subtitle"))
-        subtitle.font = NSFont.systemFont(ofSize: 11, weight: .regular)
+        subtitle.font = NSFont.systemFont(ofSize: 12, weight: .regular)
         subtitle.textColor = .secondaryLabelColor
         subtitle.maximumNumberOfLines = 0
         subtitle.lineBreakMode = .byWordWrapping
-        subtitle.preferredMaxLayoutWidth = Constants.Settings.width - 60
+        subtitle.preferredMaxLayoutWidth = Constants.Settings.width - 80
 
         view.addArrangedSubview(title)
         view.addArrangedSubview(subtitle)
         return view
     }
 
+    private func cardView(insets: NSEdgeInsets = NSEdgeInsets(top: 0, left: 18, bottom: 0, right: 18)) -> NSStackView {
+        let view = CombinedSettingsCard()
+        view.orientation = .vertical
+        view.spacing = 0
+        view.edgeInsets = insets
+        return view
+    }
+
+    private func optionRow(title: String, component: NSView) -> NSStackView {
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.edgeInsets = NSEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
+        let label = NSTextField(labelWithString: title)
+        label.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        row.addArrangedSubview(label)
+        row.addArrangedSubview(NSView())
+        row.addArrangedSubview(component)
+        row.heightAnchor.constraint(equalToConstant: 52).isActive = true
+        return row
+    }
+
+    private func separatorView() -> NSView {
+        let view = NSView()
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.22).cgColor
+        view.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
+        return view
+    }
+
     fileprivate func updateVisibility() {
         self.moduleList.setEnabled(self.state)
-        self.listSection?.subviews.forEach { $0.alphaValue = self.state ? 1.0 : 0.45 }
+        self.componentsCard?.alphaValue = self.state ? 1.0 : 0.45
     }
 
     func viewWillAppear() {
@@ -360,6 +430,12 @@ internal class CombinedSettings: NSStackView {
         NotificationCenter.default.post(name: .energyModeChanged, object: nil)
     }
 
+    @objc private func changeCombinedAppearance(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let appearance = CombinedAppearance(rawValue: raw) else { return }
+        self.combinedAppearance = appearance
+        NotificationCenter.default.post(name: .combinedAppearanceChanged, object: nil)
+    }
+
     @objc private func toggleNetwork(_ sender: NSButton) {
         // Menu-bar speed is independent from the Network row in the Combined panel.
         self.showNetwork = sender.state == .on
@@ -368,6 +444,28 @@ internal class CombinedSettings: NSStackView {
     }
     @objc private func reload() {
         self.moduleList.reload()
+    }
+}
+
+private final class CombinedSettingsCard: NSStackView {
+    override var wantsUpdateLayer: Bool { true }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        self.wantsLayer = true
+        self.layer?.cornerRadius = 13
+        self.layer?.borderWidth = 0.5
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func updateLayer() {
+        self.layer?.backgroundColor = (isDarkMode
+            ? NSColor.white.withAlphaComponent(0.055)
+            : NSColor.controlBackgroundColor.withAlphaComponent(0.82)).cgColor
+        self.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(isDarkMode ? 0.28 : 0.20).cgColor
     }
 }
 
@@ -509,15 +607,16 @@ private class CombinedModuleListView: NSStackView {
 
 private class CombinedModuleRow: NSStackView {
     fileprivate let module: Module
+    private let separator = NSView()
 
     init(module: Module) {
         self.module = module
         super.init(frame: NSRect(x: 0, y: 0, width: 0, height: 36))
 
         self.orientation = .horizontal
-        self.spacing = 8
+        self.spacing = 10
         self.alignment = .centerY
-        self.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
+        self.edgeInsets = NSEdgeInsets(top: 7, left: 2, bottom: 7, right: 2)
         self.identifier = NSUserInterfaceItemIdentifier(rawValue: module.name)
         // Stretch the row so all rows share the same width and the column grid stays aligned.
         self.setHuggingPriority(.defaultLow, for: .horizontal)
@@ -566,7 +665,18 @@ private class CombinedModuleRow: NSStackView {
         self.addArrangedSubview(nameField)
         self.addArrangedSubview(handle)
 
-        self.heightAnchor.constraint(equalToConstant: 38).isActive = true
+        self.separator.wantsLayer = true
+        self.separator.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.18).cgColor
+        self.separator.translatesAutoresizingMaskIntoConstraints = false
+        self.addSubview(self.separator)
+        NSLayoutConstraint.activate([
+            self.separator.leadingAnchor.constraint(equalTo: self.leadingAnchor),
+            self.separator.trailingAnchor.constraint(equalTo: self.trailingAnchor),
+            self.separator.bottomAnchor.constraint(equalTo: self.bottomAnchor),
+            self.separator.heightAnchor.constraint(equalToConstant: 0.5)
+        ])
+
+        self.heightAnchor.constraint(equalToConstant: 44).isActive = true
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }

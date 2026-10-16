@@ -110,33 +110,16 @@ private class SupportView: NSStackView {
         container.addArrangedSubview(textField)
         container.addArrangedSubview(NSView())
         
-        let support: NSStackView = NSStackView(frame: NSRect(x: 0, y: 0, width: 160, height: 60))
+        let support: NSStackView = NSStackView(frame: NSRect(x: 0, y: 0, width: 80, height: 60))
         support.heightAnchor.constraint(equalToConstant: 80).isActive = true
         support.edgeInsets = NSEdgeInsets(top: 12, left: 0, bottom: 0, right: 0)
-        support.spacing = 20
         support.orientation = .horizontal
-        
-        let systemStats = SupportButtonView(name: "System Stats", image: "AppIcon", action: {
-            NSWorkspace.shared.open(URL(string: "https://www.system-stats.com")!)
+        support.alignment = .centerY
+
+        let github = SupportButtonView(name: "GitHub Project", image: "github", action: {
+            NSWorkspace.shared.open(projectRepositoryURL)
         })
-        let github = SupportButtonView(name: "GitHub Sponsors", image: "github", action: {
-            NSWorkspace.shared.open(URL(string: "https://github.com/sponsors/exelban")!)
-        })
-        let paypal = SupportButtonView(name: "PayPal", image: "paypal", action: {
-            NSWorkspace.shared.open(URL(string: "https://www.paypal.com/donate?hosted_button_id=3DS5JHDBATMTC")!)
-        })
-        let koFi = SupportButtonView(name: "Ko-fi", image: "ko-fi", action: {
-            NSWorkspace.shared.open(URL(string: "https://ko-fi.com/exelban")!)
-        })
-        let patreon = SupportButtonView(name: "Patreon", image: "patreon", action: {
-            NSWorkspace.shared.open(URL(string: "https://patreon.com/exelban")!)
-        })
-        
-        support.addArrangedSubview(systemStats)
         support.addArrangedSubview(github)
-        support.addArrangedSubview(paypal)
-        support.addArrangedSubview(koFi)
-        support.addArrangedSubview(patreon)
         
         let footer = NSStackView()
         footer.heightAnchor.constraint(equalToConstant: 60).isActive = true

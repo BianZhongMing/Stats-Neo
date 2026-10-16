@@ -89,7 +89,7 @@ extension AppDelegate {
             
             if updateInterval != .silent && isNewestVersion(currentVersion: prevVersion, latestVersion: currentVersion) {
                 let title: String = localizedString("Successfully updated")
-                let subtitle: String = localizedString("Stats was updated to v", currentVersion)
+                let subtitle: String = localizedString("Stats was updated to v", currentVersion).replacingOccurrences(of: "Stats", with: "Stats Neo")
                 
                 let id = showNotification(title: title, subtitle: subtitle, delegate: self)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
@@ -171,6 +171,9 @@ extension AppDelegate {
         window.finishHandler = {
             debug("setup is finished, starting the app")
             completion()
+            NotificationCenter.default.post(name: .toggleOneView, object: nil)
+            NotificationCenter.default.post(name: .moduleRearrange, object: nil)
+            NotificationCenter.default.post(name: .combinedAppearanceChanged, object: nil)
         }
         Store.shared.set(key: "setupProcess", value: true)
     }

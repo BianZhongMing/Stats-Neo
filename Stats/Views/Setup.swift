@@ -36,7 +36,7 @@ internal class SetupWindow: NSWindow, NSWindowDelegate {
         self.titlebarAppearsTransparent = true
         self.isReleasedWhenClosed = false
         self.delegate = self
-        self.title = localizedString("Stats Setup")
+        self.title = localizedString("Stats Setup").replacingOccurrences(of: "Stats", with: "Stats Neo")
         
         self.positionCenter()
         self.setIsVisible(false)
@@ -192,8 +192,9 @@ private class SetupView_welcome: NSStackView {
         let title: NSTextField = TextView()
         title.alignment = .center
         title.font = NSFont.systemFont(ofSize: 20, weight: .semibold)
-        title.stringValue = localizedString("Welcome to Stats")
-        title.toolTip = localizedString("Welcome to Stats")
+        let welcomeTitle = localizedString("Welcome to Stats").replacingOccurrences(of: "Stats", with: "Stats Neo")
+        title.stringValue = welcomeTitle
+        title.toolTip = welcomeTitle
         title.isSelectable = false
         
         let icon: NSImageView = NSImageView(image: NSImage(named: NSImage.Name("AppIcon"))!)
@@ -202,8 +203,9 @@ private class SetupView_welcome: NSStackView {
         let message: NSTextField = TextView()
         message.alignment = .center
         message.font = NSFont.systemFont(ofSize: 12, weight: .regular)
-        message.stringValue = localizedString("welcome_message")
-        message.toolTip = localizedString("welcome_message")
+        let welcomeMessage = localizedString("welcome_message").replacingOccurrences(of: "Stats", with: "Stats Neo")
+        message.stringValue = welcomeMessage
+        message.toolTip = welcomeMessage
         message.isSelectable = false
         
         container.addRow(with: [title])
@@ -223,7 +225,7 @@ private class SetupView_welcome: NSStackView {
 
 private class SetupView_preset: NSStackView {
     private let presets: [(name: String, items: [(module: ModuleType, widget: widget_t)])] = [
-        (name: "Default", items: [
+        (name: "Combined modules", items: [
             (.CPU, .mini),
             (.RAM, .mini),
             (.disk, .mini),
@@ -251,7 +253,7 @@ private class SetupView_preset: NSStackView {
         ])
     ]
     
-    private let allModules: [ModuleType] = [.CPU, .GPU, .RAM, .disk, .sensors, .network, .battery, .bluetooth, .clock]
+    private let allModules: [ModuleType] = [.CPU, .GPU, .RAM, .disk, .sensors, .network, .battery, .bluetooth, .clock, .remote]
     private var radios: [NSButton] = []
     private var bars: [NSView] = []
     
@@ -297,8 +299,9 @@ private class SetupView_preset: NSStackView {
         container.addArrangedSubview(message)
         
         for (i, preset) in self.presets.enumerated() {
-            container.addArrangedSubview(self.option(index: i, state: preset.name == "Default", preset: preset))
+            container.addArrangedSubview(self.option(index: i, state: i == 0, preset: preset))
         }
+        self.select(0)
         
         return container
     }
@@ -312,7 +315,15 @@ private class SetupView_preset: NSStackView {
         let button: NSButton = NSButton()
         button.setButtonType(.radio)
         button.state = state ? .on : .off
-        button.title = localizedString(preset.name)
+        if index == 0 {
+            let name = localizedString(preset.name)
+            let recommended = localizedString("Recommended")
+            button.title = Locale.current.languageCode == "zh"
+                ? "\(name)（\(recommended)）"
+                : "\(name) (\(recommended))"
+        } else {
+            button.title = localizedString(preset.name)
+        }
         button.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         button.action = #selector(self.toggle)
         button.isBordered = false
@@ -320,10 +331,12 @@ private class SetupView_preset: NSStackView {
         button.target = self
         button.tag = index
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.widthAnchor.constraint(equalToConstant: 120).isActive = true
+        button.widthAnchor.constraint(equalToConstant: 170).isActive = true
         self.radios.append(button)
         
-        let images = preset.items.compactMap { self.widgetImage(module: $0.module, type: $0.widget) }
+        let images = index == 0
+            ? [iconFromSymbol(name: "chart.bar.xaxis", scale: .medium)]
+            : preset.items.compactMap { self.widgetImage(module: $0.module, type: $0.widget) }
         let bar = self.menuBarPreview(images)
         bar.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(self.boxClicked)))
         self.bars.append(bar)
@@ -398,9 +411,24 @@ private class SetupView_preset: NSStackView {
         
         self.radios.enumerated().forEach { $1.state = $0 == index ? .on : .off }
         self.bars.enumerated().forEach { self.setSelected($1, $0 == index) }
+
+        let combinedPreset = index == 0
+        Store.shared.set(key: "CombinedModules", value: combinedPreset)
+        if combinedPreset {
+            Store.shared.set(key: "CombinedModules_appearance", value: "dark")
+            Store.shared.set(key: "CombinedModules_network", value: true)
+        }
+        let combinedModules: [ModuleType] = [.CPU, .RAM, .disk, .network, .battery]
+        self.allModules.enumerated().forEach { position, module in
+            let included = combinedPreset ? combinedModules.contains(module) : true
+            Store.shared.set(key: "\(module.stringValue)_combinedIncluded", value: included)
+            Store.shared.set(key: "\(module.stringValue)_position", value: position)
+        }
         
         var widgets: [ModuleType: widget_t] = [:]
-        self.presets[index].items.forEach { widgets[$0.module] = $0.widget }
+        if !combinedPreset {
+            self.presets[index].items.forEach { widgets[$0.module] = $0.widget }
+        }
         
         for module in self.allModules {
             let name = module.stringValue
@@ -619,32 +647,15 @@ private class SetupView_end: NSStackView {
         message.toolTip = localizedString("finish_setup_message")
         message.isSelectable = false
         
-        let support: NSStackView = NSStackView(frame: NSRect(x: 0, y: 0, width: 160, height: 50))
+        let support: NSStackView = NSStackView(frame: NSRect(x: 0, y: 0, width: 80, height: 50))
         support.edgeInsets = NSEdgeInsets(top: 12, left: 0, bottom: 0, right: 0)
-        support.spacing = 12
         support.orientation = .horizontal
-        
-        let systemStats = SupportButtonView(name: "System Stats", image: "AppIcon", action: {
-            NSWorkspace.shared.open(URL(string: "https://www.system-stats.com")!)
+        support.alignment = .centerY
+
+        let github = SupportButtonView(name: "GitHub Project", image: "github", action: {
+            NSWorkspace.shared.open(projectRepositoryURL)
         })
-        let github = SupportButtonView(name: "GitHub Sponsors", image: "github", action: {
-            NSWorkspace.shared.open(URL(string: "https://github.com/sponsors/exelban")!)
-        })
-        let paypal = SupportButtonView(name: "PayPal", image: "paypal", action: {
-            NSWorkspace.shared.open(URL(string: "https://www.paypal.com/donate?hosted_button_id=3DS5JHDBATMTC")!)
-        })
-        let koFi = SupportButtonView(name: "Ko-fi", image: "ko-fi", action: {
-            NSWorkspace.shared.open(URL(string: "https://ko-fi.com/exelban")!)
-        })
-        let patreon = SupportButtonView(name: "Patreon", image: "patreon", action: {
-            NSWorkspace.shared.open(URL(string: "https://patreon.com/exelban")!)
-        })
-        
-        support.addArrangedSubview(systemStats)
         support.addArrangedSubview(github)
-        support.addArrangedSubview(paypal)
-        support.addArrangedSubview(koFi)
-        support.addArrangedSubview(patreon)
         
         content.addArrangedSubview(message)
         content.addArrangedSubview(support)

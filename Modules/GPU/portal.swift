@@ -22,34 +22,29 @@ public class Portal: PortalWrapper {
     private var initialized: Bool = false
     
     public override func load() {
+        self.body.distribution = .fill
+        self.body.alignment = .centerY
+        self.body.spacing = 14
         let circle = self.circleView()
+        circle.widthAnchor.constraint(equalToConstant: 116).isActive = true
         let details = self.detailsView()
-        
         self.body.addArrangedSubview(circle)
         self.body.addArrangedSubview(details)
     }
     
     private func circleView() -> NSView {
-        let view: NSStackView = NSStackView()
-        
-        view.heightAnchor.constraint(equalToConstant: 70).isActive = true
-        view.edgeInsets = NSEdgeInsets(top: 5, left: 5, bottom: 5, right: 5)
-        
+        let view = NSStackView()
+        view.heightAnchor.constraint(equalToConstant: 84).isActive = true
+        view.edgeInsets = NSEdgeInsets(top: 7, left: 14, bottom: 7, right: 14)
         view.addArrangedSubview(self.circle)
-        
         return view
     }
     
     private func detailsView() -> NSView {
-        let view = NSStackView()
-        view.orientation = .vertical
-        view.distribution = .fillEqually
-        view.spacing = Constants.Popup.spacing*2
-        
-        self.usageField = portalRow(view, title: "\(localizedString("Usage")):").1
-        self.aneField = portalRow(view, title: "\("ANE"):").1
-        self.fpsField = portalRow(view, title: "\("FPS"):").1
-        
+        let view = combinedMetricStack(spacing: 6)
+        self.usageField = combinedDataRow(view, title: "\(localizedString("Usage")):")
+        self.aneField = combinedDataRow(view, title: "ANE:")
+        self.fpsField = combinedDataRow(view, title: "FPS:")
         return view
     }
     

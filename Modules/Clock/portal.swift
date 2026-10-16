@@ -34,7 +34,7 @@ public class Portal: PortalWrapper {
             views = []
         }
         
-        let width: CGFloat = Constants.Popup.width - (Constants.Popup.spacing*2)
+        let width: CGFloat = CombinedPortalStyle.contentWidth - (CombinedPortalStyle.horizontalInset*2)
         
         sorted.forEach { (c: Clock_t) in
             if let view = views.first(where: { $0.clock.id == c.id }) {

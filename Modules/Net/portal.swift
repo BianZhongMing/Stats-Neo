@@ -13,7 +13,7 @@ import Cocoa
 import Kit
 
 public class Portal: PortalWrapper {
-    private var chart: NetworkChartView? = nil
+    private var chart: CombinedHistoryBarsView? = nil
     private var initialized: Bool = false
     
     private var uploadField: NSTextField? = nil
@@ -69,139 +69,99 @@ public class Portal: PortalWrapper {
     public override func load() {
         self.body.orientation = .vertical
         self.body.distribution = .fill
-        
-        var top: NSStackView {
-            let view = NSStackView()
-            
-            view.orientation = .horizontal
-            view.distribution = .fillEqually
-            view.spacing = Constants.Popup.spacing*2
-            
-            let chart: NSView = self.chartView()
-            let details: NSView = self.ioView()
-            
-            view.addArrangedSubview(details)
-            view.addArrangedSubview(chart)
-            
-            return view
-        }
-        
-        let bottom = self.detailsView()
-        
-        self.body.addArrangedSubview(top)
-        self.body.addArrangedSubview(bottom)
+        self.body.alignment = .leading
+        self.body.spacing = 9
+
+        let speeds = self.ioView()
+        speeds.heightAnchor.constraint(equalToConstant: 42).isActive = true
+        let chart = self.chartView()
+        chart.heightAnchor.constraint(equalToConstant: 58).isActive = true
+
+        self.body.addArrangedSubview(speeds)
+        speeds.widthAnchor.constraint(equalTo: self.widthAnchor, constant: -(self.body.edgeInsets.left + self.body.edgeInsets.right)).isActive = true
+        self.body.addArrangedSubview(chart)
+        chart.widthAnchor.constraint(equalTo: self.widthAnchor, constant: -(self.body.edgeInsets.left + self.body.edgeInsets.right)).isActive = true
     }
     
     private func chartView() -> NSView {
         let view = NSStackView()
-        view.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 5)
+        view.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
+        CombinedPortalStyle.surface(view)
         
-        view.wantsLayer = true
-        view.layer?.backgroundColor = NSColor.lightGray.withAlphaComponent(0.1).cgColor
-        view.layer?.cornerRadius = Constants.Popup.radius
-        
-        let chart = NetworkChartView(
-            num: 120,
-            minMax: false,
-            reversedOrder: self.reverseOrderState,
-            outColor: self.uploadColor,
-            inColor: self.downloadColor,
-            scale: self.chartScale,
-            fixedScale: Double(self.chartFixedScaleSize.toBytes(self.chartFixedScale))
+        let chart = CombinedHistoryBarsView(
+            count: 18,
+            firstColor: self.uploadColor,
+            secondColor: self.downloadColor
         )
-        chart.setBase(self.base)
-        chart.setSpeedUnit(self.speedUnit)
-        
         self.chart = chart
         
         view.addArrangedSubview(chart)
+        chart.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -(view.edgeInsets.left + view.edgeInsets.right)).isActive = true
         
         return view
     }
     
     private func ioView() -> NSView {
         let view = NSStackView()
-        view.orientation = .vertical
+        view.orientation = .horizontal
         view.distribution = .fillEqually
-        view.spacing = Constants.Popup.spacing*2
-        
-        (_, self.uploadField) = portalWithColorRow(view, color: self.uploadColor, title: "\(localizedString("Uploading")):")
-        (_, self.downloadField) = portalWithColorRow(view, color: self.downloadColor, title: "\(localizedString("Downloading")):")
-        
+        view.spacing = 18
+
+        let upload = self.speedMetric(title: localizedString("Uploading"), color: self.uploadColor)
+        self.uploadField = upload.field
+        let download = self.speedMetric(title: localizedString("Downloading"), color: self.downloadColor)
+        self.downloadField = download.field
+
+        view.addArrangedSubview(upload.view)
+        view.addArrangedSubview(download.view)
         return view
+    }
+
+    private func speedMetric(title: String, color: NSColor) -> (view: NSStackView, field: ValueField) {
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 1
+
+        let value = ValueField("0 KB/s")
+        value.font = NSFont.monospacedDigitSystemFont(ofSize: 20, weight: .medium)
+        value.alignment = .center
+
+        let label = NSStackView()
+        label.orientation = .horizontal
+        label.alignment = .centerY
+        label.spacing = 5
+        let marker = ColorBlock(color: color)
+        marker.layer?.cornerRadius = 5
+        let text = LabelField(title)
+        text.font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        text.textColor = color
+        label.addArrangedSubview(marker)
+        label.addArrangedSubview(text)
+
+        stack.addArrangedSubview(value)
+        stack.addArrangedSubview(label)
+        return (stack, value)
     }
     
     private func detailsView() -> NSView {
-        let view = NSStackView()
-        view.orientation = .vertical
-        view.distribution = .fillEqually
-        view.spacing = Constants.Popup.spacing*2
-        
-        self.localIPField = portalRow(view, title: "\(localizedString("Local IP")):", value: localizedString("Unknown"), isSelectable: true).1
-        
-        let publicIP = portalRow(view, title: "\(localizedString("Public IP")):", value: localizedString("Unknown"), isSelectable: true)
-        self.publicIPField = publicIP.1
-        self.publicIPView = publicIP.2
+        let view = combinedMetricStack(spacing: 3)
+        self.localIPField = combinedDataRow(view, title: "\(localizedString("Local IP")):", value: localizedString("Unknown"), selectable: true)
+        self.publicIPField = combinedDataRow(view, title: "\(localizedString("Public IP")):", value: localizedString("Unknown"), selectable: true)
+        self.publicIPView = self.publicIPField?.superview
         self.publicIPView?.isHidden = !self.publicIPState
-        
         return view
     }
     
     public func usageCallback(_ value: Network_Usage) {
         DispatchQueue.main.async(execute: {
-            self.chart?.addValue(upload: Double(value.bandwidth.upload), download: Double(value.bandwidth.download))
+            self.chart?.addValue(first: Double(value.bandwidth.upload), second: Double(value.bandwidth.download))
             
             guard (self.window?.isVisible ?? false) || !self.initialized else { return }
             self.initialized = true
             
             self.uploadField?.stringValue = Units(bytes: value.bandwidth.upload).getReadableSpeed(base: self.base, unit: self.speedUnit)
             self.downloadField?.stringValue = Units(bytes: value.bandwidth.download).getReadableSpeed(base: self.base, unit: self.speedUnit)
-            
-            if let chart = self.chart {
-                chart.setBase(self.base)
-                chart.setSpeedUnit(self.speedUnit)
-                chart.setScale(self.chartScale, Double(self.chartFixedScaleSize.toBytes(self.chartFixedScale)))
-                chart.setColors(in: self.downloadColor, out: self.uploadColor)
-            }
-            
-            if self.publicIPState, let view = self.publicIPView, view.isHidden {
-                self.publicIPView?.isHidden = false
-            } else if !self.publicIPState, let view = self.publicIPView, !view.isHidden {
-                self.publicIPView?.isHidden = true
-            }
-            
-            if let view = self.publicIPField, view.stringValue != value.raddr.v4 {
-                if let addr = value.raddr.v4 {
-                    var ip = addr
-                    if let cc = value.raddr.countryCode, !cc.isEmpty {
-                        if self.emojiCCState, let flag = countryFlag(cc) {
-                            ip += " \(flag)"
-                        } else {
-                            ip += " (\(cc))"
-                        }
-                        view.toolTip = cc
-                    }
-                    view.stringValue = ip
-                } else {
-                    view.stringValue = localizedString("Unknown")
-                }
-                
-                if let addr = value.raddr.v6 {
-                    view.toolTip = "v6: \(addr)"
-                } else {
-                    view.toolTip = "v6: \(localizedString("Unknown"))"
-                }
-            }
-            
-            var privateIP = localizedString("Unknown")
-            if let v4 = value.laddr.v4, !v4.isEmpty {
-                privateIP = v4
-            } else if let v6 = value.laddr.v6, !v6.isEmpty {
-                privateIP = v6
-            }
-            if self.localIPField?.stringValue != privateIP {
-                self.localIPField?.stringValue = privateIP
-            }
         })
     }
 }

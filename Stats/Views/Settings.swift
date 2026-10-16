@@ -338,7 +338,6 @@ private class MainView: NSView {
 private class SidebarView: NSStackView {
     private let scrollView: ScrollableStackView
     
-    private let supportPopover = NSPopover()
     private var pauseButton: NSButton? = nil
     
     private var pauseState: Bool {
@@ -372,9 +371,6 @@ private class SidebarView: NSStackView {
         self.scrollView.stackView.addArrangedSubview(MenuItem(icon: self.combinedIcon, title: "Combined"))
         self.scrollView.stackView.addArrangedSubview(spacer)
         
-        self.supportPopover.behavior = .transient
-        self.supportPopover.contentViewController = self.supportView()
-        
         let additionalButtons: NSStackView = NSStackView(frame: NSRect(x: 0, y: 0, width: frame.width, height: 45))
         additionalButtons.heightAnchor.constraint(equalToConstant: 45).isActive = true
         additionalButtons.orientation = .horizontal
@@ -382,7 +378,8 @@ private class SidebarView: NSStackView {
         additionalButtons.alignment = .centerY
         additionalButtons.spacing = 0
         
-        let pauseButton = self.makeButton(title: localizedString("Pause the Stats"), image: self.pauseState ? self.resumeIcon : self.pauseIcon, action: #selector(togglePause))
+        let pauseTitle = localizedString("Pause the Stats").replacingOccurrences(of: "Stats", with: "Stats Neo")
+        let pauseButton = self.makeButton(title: pauseTitle, image: self.pauseState ? self.resumeIcon : self.pauseIcon, action: #selector(togglePause))
         self.pauseButton = pauseButton
         
         additionalButtons.addArrangedSubview(self.makeButton(title: localizedString("Settings"), image: self.settingsIcon, action: #selector(openSettings)))
@@ -452,49 +449,16 @@ private class SidebarView: NSStackView {
         return button
     }
     
-    private func supportView() -> NSViewController {
-        let vc: NSViewController = NSViewController(nibName: nil, bundle: nil)
-        let view: NSStackView = NSStackView(frame: NSRect(x: 0, y: 0, width: 220, height: 54))
-        view.spacing = 10
-        view.edgeInsets = NSEdgeInsets(top: 0, left: 15, bottom: 0, right: 0)
-        view.orientation = .horizontal
-        
-        let systemStats = SupportButtonView(name: "System Stats", image: "AppIcon", action: {
-            NSWorkspace.shared.open(URL(string: "https://www.system-stats.com")!)
-        })
-        let github = SupportButtonView(name: "GitHub Sponsors", image: "github", action: {
-            NSWorkspace.shared.open(URL(string: "https://github.com/sponsors/exelban")!)
-        })
-        let paypal = SupportButtonView(name: "PayPal", image: "paypal", action: {
-            NSWorkspace.shared.open(URL(string: "https://www.paypal.com/donate?hosted_button_id=3DS5JHDBATMTC")!)
-        })
-        let koFi = SupportButtonView(name: "Ko-fi", image: "ko-fi", action: {
-            NSWorkspace.shared.open(URL(string: "https://ko-fi.com/exelban")!)
-        })
-        let patreon = SupportButtonView(name: "Patreon", image: "patreon", action: {
-            NSWorkspace.shared.open(URL(string: "https://patreon.com/exelban")!)
-        })
-        
-        view.addArrangedSubview(systemStats)
-        view.addArrangedSubview(github)
-        view.addArrangedSubview(paypal)
-        view.addArrangedSubview(koFi)
-        view.addArrangedSubview(patreon)
-        
-        vc.view = view
-        return vc
-    }
-    
     @objc private func openSettings() {
         NotificationCenter.default.post(name: .openModuleSettings, object: nil, userInfo: ["module": "Settings"])
     }
     
     @objc private func reportBug() {
-        NSWorkspace.shared.open(URL(string: "https://github.com/exelban/stats/issues/new?template=bug_report.md")!)
+        NSWorkspace.shared.open(projectIssuesURL)
     }
     
     @objc private func donate(_ sender: NSButton) {
-        self.supportPopover.show(relativeTo: sender.bounds, of: sender, preferredEdge: NSRectEdge.minY)
+        NSWorkspace.shared.open(projectRepositoryURL)
     }
     
     @objc private func closeApp(_ sender: NSButton) {
@@ -503,13 +467,15 @@ private class SidebarView: NSStackView {
     
     @objc private func togglePause() {
         self.pauseState = !self.pauseState
-        self.pauseButton?.toolTip = localizedString(self.pauseState ? "Resume the Stats" : "Pause the Stats")
+        let key = self.pauseState ? "Resume the Stats" : "Pause the Stats"
+        self.pauseButton?.toolTip = localizedString(key).replacingOccurrences(of: "Stats", with: "Stats Neo")
         self.pauseButton?.image = self.pauseState ? self.resumeIcon : self.pauseIcon
         NotificationCenter.default.post(name: .pause, object: nil, userInfo: ["state": self.pauseState])
     }
     
     @objc func listenForPause() {
-        self.pauseButton?.toolTip = localizedString(self.pauseState ? "Resume the Stats" : "Pause the Stats")
+        let key = self.pauseState ? "Resume the Stats" : "Pause the Stats"
+        self.pauseButton?.toolTip = localizedString(key).replacingOccurrences(of: "Stats", with: "Stats Neo")
         self.pauseButton?.image = self.pauseState ? self.resumeIcon : self.pauseIcon
     }
 }

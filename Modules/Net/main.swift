@@ -173,7 +173,7 @@ public class Network: Module {
     public init() {
         self.settingsView = Settings(.network)
         self.popupView = Popup(.network)
-        self.portalView = Portal(.network, height: 90)
+        self.portalView = Portal(.network, height: 125)
         self.notificationsView = Notifications(.network)
         self.previewView = Preview(.network)
         

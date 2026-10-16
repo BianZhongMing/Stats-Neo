@@ -53,14 +53,18 @@ jobs:
           if [ "$HAS_SIGNING_CERT" = "true" ]; then
             xcodebuild -exportArchive -exportOptionsPlist exportOptions.plist -archivePath build/Stats.xcarchive -exportPath build
           else
-            cp -R build/Stats.xcarchive/Products/Applications/Stats.app build/Stats.app
-            codesign --force --deep --sign - build/Stats.app
+            cp -R "build/Stats.xcarchive/Products/Applications/Stats Neo.app" "build/Stats Neo.app"
+            codesign --force --deep --sign - "build/Stats Neo.app"
           fi
+
+      - name: Prepare notarization archive
+        if: inputs.dry_run != true && env.HAS_NOTARIZATION == 'true'
+        run: ditto -c -k --keepParent "build/Stats Neo.app" "build/Stats Neo.app.zip"
 
       - name: Notarize
         if: inputs.dry_run != true && env.HAS_NOTARIZATION == 'true'
         run: |
-          xcrun notarytool submit build/Stats.zip \
+          xcrun notarytool submit "build/Stats Neo.app.zip" \
             --apple-id "${{ secrets.APPLE_ID }}" \
             --team-id "${{ secrets.APPLE_TEAM_ID }}" \
             --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
@@ -68,53 +72,53 @@ jobs:
 
       - name: Staple
         if: inputs.dry_run != true && env.HAS_NOTARIZATION == 'true'
-        run: xcrun stapler staple build/Stats.app
+        run: xcrun stapler staple "build/Stats Neo.app"
 
       - name: Verify signatures
         run: |
-          codesign --verify --strict "build/Stats.app/Contents/PlugIns/WidgetsExtension.appex"
-          app=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" build/Stats.app/Contents/Info.plist)
-          widget=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "build/Stats.app/Contents/PlugIns/WidgetsExtension.appex/Contents/Info.plist")
+          codesign --verify --strict "build/Stats Neo.app/Contents/PlugIns/WidgetsExtension.appex"
+          app=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "build/Stats Neo.app/Contents/Info.plist")
+          widget=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "build/Stats Neo.app/Contents/PlugIns/WidgetsExtension.appex/Contents/Info.plist")
           echo "app: $app, widget: $widget"
           [ "$app" = "$widget" ] || { echo "ERROR: widget version does not match app version"; exit 1; }
 
       - name: Verify gatekeeper
         if: inputs.dry_run != true && env.HAS_NOTARIZATION == 'true'
-        run: spctl -a -t exec -vvv build/Stats.app
+        run: spctl -a -t exec -vvv "build/Stats Neo.app"
 
       - name: Package ZIP
-        run: ditto -c -k --sequesterRsrc --keepParent build/Stats.app build/Stats.app.zip
+        run: ditto -c -k --sequesterRsrc --keepParent "build/Stats Neo.app" "build/Stats Neo.app.zip"
 
       - name: DMG
         run: |
           git clone --depth 1 https://github.com/create-dmg/create-dmg
           ./create-dmg/create-dmg \
-            --volname Stats \
+            --volname "Stats Neo" \
             --background "./Stats/Supporting Files/background.png" \
             --window-pos 200 120 \
             --window-size 500 320 \
             --icon-size 80 \
-            --icon "Stats.app" 125 175 \
-            --hide-extension "Stats.app" \
+            --icon "Stats Neo.app" 125 175 \
+            --hide-extension "Stats Neo.app" \
             --app-drop-link 375 175 \
             --no-internet-enable \
-            build/Stats.dmg build/Stats.app
+            "build/Stats Neo.dmg" "build/Stats Neo.app"
           rm -rf ./create-dmg
 
       - name: Upload packages
         if: inputs.dry_run == true
         uses: actions/upload-artifact@v4
         with:
-          name: Stats-packages
+          name: Stats-Neo-packages
           path: |
-            build/Stats.dmg
-            build/Stats.app.zip
+            build/Stats Neo.dmg
+            build/Stats Neo.app.zip
 
       - name: Publish
         if: inputs.dry_run != true
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/Stats.dmg
-            build/Stats.app.zip
+            build/Stats Neo.dmg
+            build/Stats Neo.app.zip
           body_path: ./RELEASE_NOTES.md

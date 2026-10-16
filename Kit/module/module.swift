@@ -89,7 +89,7 @@ open class Module {
         set { Store.shared.set(key: "\(self.name)_position", value: newValue) }
     }
     public var combinedIncluded: Bool {
-        get { Store.shared.bool(key: "\(self.name)_combinedIncluded", defaultValue: true) }
+        get { Store.shared.bool(key: "\(self.name)_combinedIncluded", defaultValue: self.moduleType != .remote) }
         set { Store.shared.set(key: "\(self.name)_combinedIncluded", value: newValue) }
     }
     /// Whether this module is configured as a card in the Combined popup.

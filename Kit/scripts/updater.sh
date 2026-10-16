@@ -1,8 +1,8 @@
 #!/bin/bash
 set -eu
 
-DMG_PATH="$HOME/Downloads/Stats.dmg"
-MOUNT_PATH="/tmp/Stats"
+DMG_PATH="$HOME/Downloads/Stats Neo.dmg"
+MOUNT_PATH="/tmp/Stats Neo"
 APPLICATION_PATH="/Applications/"
 LAUNCH_UID=""
 
@@ -17,8 +17,8 @@ while [[ "$#" -gt 0 ]]; do case "$1" in
   *) echo "Unknown parameter passed: $1"; exit 1;;
 esac; shift; done
 
-APP_DST="${APPLICATION_PATH%/}/Stats.app"
-APP_SRC="${MOUNT_PATH%/}/Stats.app"
+APP_DST="${APPLICATION_PATH%/}/Stats Neo.app"
+APP_SRC="${MOUNT_PATH%/}/Stats Neo.app"
 
 # When the script runs as root (admin auth path) but a target UID was passed,
 # launch the new app back as the original user so it doesn't run as root.
@@ -33,20 +33,20 @@ launch_app() {
 install_app() {
     local parent staging old
     parent="$(/usr/bin/dirname "$APP_DST")"
-    staging="$(/usr/bin/mktemp -d "$parent/.Stats-update.XXXXXX")"
+    staging="$(/usr/bin/mktemp -d "$parent/.Stats-Neo-update.XXXXXX")"
 
     if command -v ditto >/dev/null 2>&1; then
-        ditto "$APP_SRC" "$staging/Stats.app"
+        ditto "$APP_SRC" "$staging/Stats Neo.app"
     else
-        cp -Rf "$APP_SRC" "$staging/Stats.app"
+        cp -Rf "$APP_SRC" "$staging/Stats Neo.app"
     fi
 
     old=""
     if [[ -e "$APP_DST" ]]; then
-        old="$(/usr/bin/mktemp -d "$parent/.Stats-old.XXXXXX")"
-        mv "$APP_DST" "$old/Stats.app"
+        old="$(/usr/bin/mktemp -d "$parent/.Stats-Neo-old.XXXXXX")"
+        mv "$APP_DST" "$old/Stats Neo.app"
     fi
-    mv "$staging/Stats.app" "$APP_DST"
+    mv "$staging/Stats Neo.app" "$APP_DST"
 
     rm -rf "$staging"
     if [[ -n "$old" ]]; then
@@ -57,7 +57,7 @@ install_app() {
 if [[ "$STEP" == "2" ]]; then
     install_app
 
-    launch_app "$APP_DST/Contents/MacOS/Stats" --dmg "$DMG_PATH"
+    launch_app "$APP_DST/Contents/MacOS/Stats Neo" --dmg "$DMG_PATH"
 
     echo "New version started"
 elif [[ "$STEP" == "3" ]]; then
@@ -69,7 +69,7 @@ elif [[ "$STEP" == "3" ]]; then
 else
     install_app
 
-    launch_app "$APP_DST/Contents/MacOS/Stats" --dmg-path "$DMG_PATH" --mount-path "$MOUNT_PATH"
+    launch_app "$APP_DST/Contents/MacOS/Stats Neo" --dmg-path "$DMG_PATH" --mount-path "$MOUNT_PATH"
 
     echo "New version started"
 fi

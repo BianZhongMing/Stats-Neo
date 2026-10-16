@@ -36,36 +36,30 @@ public class Portal: PortalWrapper {
     }
     
     public override func load() {
+        self.body.distribution = .fill
+        self.body.alignment = .centerY
+        self.body.spacing = 14
         let circle = self.circleView()
+        circle.widthAnchor.constraint(equalToConstant: 116).isActive = true
         let details = self.detailsView()
-        
         self.body.addArrangedSubview(circle)
         self.body.addArrangedSubview(details)
     }
     
     private func circleView() -> NSView {
         let view = NSStackView()
-        
-        view.heightAnchor.constraint(equalToConstant: 80).isActive = true
-        view.edgeInsets = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
-        
+        view.heightAnchor.constraint(equalToConstant: 84).isActive = true
+        view.edgeInsets = NSEdgeInsets(top: 7, left: 14, bottom: 7, right: 14)
         view.addArrangedSubview(self.circle)
-        
         return view
     }
     
     private func detailsView() -> NSView {
-        let view = NSStackView()
-        
-        view.orientation = .vertical
-        view.distribution = .fillEqually
-        view.spacing = Constants.Popup.spacing*2
-        
-        self.usedField = portalRow(view, title: "\(localizedString("Used")):").1
-        self.freeField = portalRow(view, title: "\(localizedString("Free")):").1
-        self.swapField = portalRow(view, title: "Swap:").1
-        self.pressureLevelField = portalRow(view, title: "\(localizedString("Pressure")):").1
-        
+        let view = combinedMetricStack(spacing: 5)
+        self.usedField = combinedDataRow(view, title: "\(localizedString("Used")):")
+        self.freeField = combinedDataRow(view, title: "\(localizedString("Free")):")
+        self.swapField = combinedDataRow(view, title: "Swap:")
+        self.pressureLevelField = combinedDataRow(view, title: "\(localizedString("Pressure")):")
         return view
     }
     
@@ -75,7 +69,8 @@ public class Portal: PortalWrapper {
                 self.usedField?.stringValue = Units(bytes: Int64(value.used)).getReadableMemory(style: .memory)
                 self.freeField?.stringValue = Units(bytes: Int64(value.free)).getReadableMemory(style: .memory)
                 self.swapField?.stringValue = Units(bytes: Int64(value.swap.used)).getReadableMemory(style: .memory)
-                self.pressureLevelField?.stringValue = value.pressure.value.rawValue
+                self.pressureLevelField?.stringValue = localizedString(value.pressure.value.rawValue.capitalized)
+                self.pressureLevelField?.textColor = value.pressure.value.pressureColor()
                 
                 self.usedField?.toolTip = "\(Int(value.usage.rounded(toPlaces: 2) * 100))%"
                 self.freeField?.toolTip = "\(Int((1-value.usage).rounded(toPlaces: 2) * 100))%"

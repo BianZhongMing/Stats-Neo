@@ -22,7 +22,9 @@ import Bluetooth
 import Clock
 import Remote
 
-let updater = Updater(github: "exelban/stats", url: "https://api.mac-stats.com/release/latest")
+let projectRepositoryURL = URL(string: "https://github.com/BianZhongMing/Stats-Neo")!
+let projectIssuesURL = URL(string: "https://github.com/BianZhongMing/Stats-Neo/issues/new")!
+let updater = Updater(github: "BianZhongMing/Stats-Neo", url: "https://api.github.com/repos/BianZhongMing/Stats-Neo/releases/latest")
 var modules: [Module] = [
     CPU(),
     GPU(),
@@ -98,7 +100,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             return event
         }
         
-        info("Stats started in \((startingPoint.timeIntervalSinceNow * -1).rounded(toPlaces: 4)) seconds")
+        info("Stats Neo started in \((startingPoint.timeIntervalSinceNow * -1).rounded(toPlaces: 4)) seconds")
         self.startTS = Date()
     }
     

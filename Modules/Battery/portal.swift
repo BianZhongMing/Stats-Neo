@@ -20,31 +20,40 @@ internal class Portal: PortalWrapper {
     private var capacityField: NSTextField? = nil
     
     public override func load() {
+        self.body.orientation = .vertical
+        self.body.distribution = .fill
+        self.body.alignment = .leading
+        self.body.spacing = 6
+
+        let top = NSStackView()
+        top.orientation = .horizontal
+        top.distribution = .fill
+        top.alignment = .centerY
+        top.spacing = 10
+        top.heightAnchor.constraint(equalToConstant: 76).isActive = true
+
         let chart = self.chartView()
-        let details = self.detailsView()
-        
-        self.body.addArrangedSubview(chart)
-        self.body.addArrangedSubview(details)
+        chart.widthAnchor.constraint(equalToConstant: 126).isActive = true
+        top.addArrangedSubview(chart)
+        top.addArrangedSubview(self.summaryView())
+
+        self.body.addArrangedSubview(top)
+        top.widthAnchor.constraint(equalTo: self.widthAnchor, constant: -(self.body.edgeInsets.left + self.body.edgeInsets.right)).isActive = true
     }
     
     private func chartView() -> NSView {
         let view = NSStackView()
-        view.edgeInsets = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        view.edgeInsets = NSEdgeInsets(top: 12, left: 8, bottom: 12, right: 8)
         view.addArrangedSubview(self.batteryView)
         return view
     }
     
-    private func detailsView() -> NSView {
-        let view = NSStackView()
-        
-        view.orientation = .vertical
-        view.distribution = .fillEqually
-        view.spacing = Constants.Popup.spacing*2
-        
-        self.chargeTimeField = portalRow(view, title: "\(localizedString("Time to full")):").1
-        self.cyclesField = portalRow(view, title: "\(localizedString("Cycles")):").1
-        self.capacityField = portalRow(view, title: "\(localizedString("Max capacity")):").1
-        
+    private func summaryView() -> NSView {
+        let view = combinedMetricStack(spacing: 5)
+        self.chargeTimeField = combinedDataRow(view, title: "\(localizedString("Time to full")):")
+        self.cyclesField = combinedDataRow(view, title: "\(localizedString("Cycles")):")
+        self.capacityField = combinedDataRow(view, title: "\(localizedString("Max capacity")):")
+        self.capacityField?.font = NSFont.monospacedDigitSystemFont(ofSize: 10.5, weight: .medium)
         return view
     }
     
@@ -70,8 +79,8 @@ internal class Portal: PortalWrapper {
             }
             self.chargeTimeField?.stringValue = chargeTime
             self.cyclesField?.stringValue = "\(value.cycles)"
-            self.capacityField?.stringValue = "\(value.health)% · \(value.maxCapacity) mAh"
-            self.capacityField?.toolTip = "\(localizedString("Designed capacity")): \(value.designedCapacity) mAh"
+            self.capacityField?.stringValue = "\(value.health)%"
+            self.capacityField?.toolTip = "\(localizedString("Max capacity")): \(value.maxCapacity) mAh\n\(localizedString("Designed capacity")): \(value.designedCapacity) mAh"
         })
     }
 }

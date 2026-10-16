@@ -17,8 +17,9 @@ run_as_user() {
     fi
 }
 
-echo "Uninstalling Stats..."
+echo "Uninstalling Stats Neo..."
 
+run_as_user osascript -e 'quit app "Stats Neo"' >/dev/null 2>&1 || true
 run_as_user osascript -e 'quit app "Stats"' >/dev/null 2>&1 || true
 
 echo "Removing the launch agent..."
@@ -36,7 +37,7 @@ sudo launchctl unload "/Library/LaunchDaemons/$HELPER_LABEL.plist" 2>/dev/null |
 sudo rm -f "/Library/LaunchDaemons/$HELPER_LABEL.plist"
 sudo rm -f "/Library/PrivilegedHelperTools/$HELPER_LABEL"
 
-for app in "/Applications/Stats.app" "$HOME/Applications/Stats.app"; do
+for app in "/Applications/Stats Neo.app" "$HOME/Applications/Stats Neo.app" "/Applications/Stats.app" "$HOME/Applications/Stats.app"; do
     if [ -d "$app" ]; then
         echo "Removing $app..."
         sudo rm -rf "$app"
@@ -55,5 +56,5 @@ run_as_user defaults delete eu.exelban.Stats.Widgets >/dev/null 2>&1 || true
 rm -f "$HOME/Library/Preferences/eu.exelban.Stats.plist"
 rm -f "$HOME/Library/Preferences/eu.exelban.Stats.Widgets.plist"
 
-echo "Stats has been uninstalled."
+echo "Stats Neo has been uninstalled."
 echo "If fan speeds were controlled manually, they will return to automatic control after a reboot."

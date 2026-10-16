@@ -7,7 +7,7 @@ AUTH_HOST="https://oauth.system-stats.com"
 API_HOST="https://api.system-stats.com"
 APP_HOST="https://app.system-stats.com"
 CLIENT_ID="stats"
-REPO="exelban/stats"
+REPO="BianZhongMing/Stats-Neo"
 AGENT_LABEL="eu.exelban.Stats"
 UID_NUM="$(id -u)"
 
@@ -16,18 +16,18 @@ VERSION="latest"
 ENABLE_CONTROL="false"
 ENABLE_UPDATE="false"
 REAUTH=0
-APP_DST="/Applications/Stats.app"
+APP_DST="/Applications/Stats Neo.app"
 CUSTOM_APP_DST=0
 
 usage() {
     echo "Usage: install.sh [options]"
     echo ""
-    echo "Installs Stats, enables the Remote module, authorizes the machine"
+    echo "Installs Stats Neo, enables the Remote module, authorizes the machine"
     echo "against the System Stats account and registers a launchd agent."
     echo ""
     echo "Options:"
     echo "  -v, --version TAG    Install a specific release tag (default: latest)"
-    echo "  -a, --app PATH       Target location of Stats.app (default: /Applications/Stats.app)"
+    echo "  -a, --app PATH       Target location of Stats Neo.app (default: /Applications/Stats Neo.app)"
     echo "  -c, --control        Allow remote control commands"
     echo "  -u, --update         Allow remote update trigger"
     echo "  -r, --reauth         Force a fresh login even if tokens already exist"
@@ -68,19 +68,23 @@ trap 'INSTALL_EXIT_STATUS=$?; cleanup; exit "$INSTALL_EXIT_STATUS"' EXIT
 
 if [[ -d "$APP_DST" ]]; then
     APP="$APP_DST"
+elif [[ "$CUSTOM_APP_DST" -eq 0 && -d "$HOME/Applications/Stats Neo.app" ]]; then
+    APP="$HOME/Applications/Stats Neo.app"
+elif [[ "$CUSTOM_APP_DST" -eq 0 && -d "/Applications/Stats.app" ]]; then
+    APP="/Applications/Stats.app"
 elif [[ "$CUSTOM_APP_DST" -eq 0 && -d "$HOME/Applications/Stats.app" ]]; then
     APP="$HOME/Applications/Stats.app"
 else
     if [[ "$VERSION" == "latest" ]]; then
-        URL="https://github.com/$REPO/releases/latest/download/Stats.dmg"
+        URL="https://github.com/$REPO/releases/latest/download/Stats%20Neo.dmg"
     else
-        URL="https://github.com/$REPO/releases/download/v$VERSION/Stats.dmg"
+        URL="https://github.com/$REPO/releases/download/v$VERSION/Stats%20Neo.dmg"
     fi
-    echo "Downloading Stats ($VERSION)..."
-    /usr/bin/curl -fL --retry 3 -o "$TMP/Stats.dmg" "$URL"
+    echo "Downloading Stats Neo ($VERSION)..."
+    /usr/bin/curl -fL --retry 3 -o "$TMP/Stats Neo.dmg" "$URL"
     MOUNT="$TMP/mount"
     /bin/mkdir -p "$MOUNT"
-    /usr/bin/hdiutil attach -nobrowse -noautoopen -quiet -readonly -mountpoint "$MOUNT" "$TMP/Stats.dmg"
+    /usr/bin/hdiutil attach -nobrowse -noautoopen -quiet -readonly -mountpoint "$MOUNT" "$TMP/Stats Neo.dmg"
 
     DEST="$(dirname "$APP_DST")"
     INSTALL_PARENT="$DEST"
@@ -93,7 +97,7 @@ else
             INSTALL_CMD=(sudo)
         elif [[ "$CUSTOM_APP_DST" -eq 0 ]]; then
             DEST="$HOME/Applications"
-            APP_DST="$DEST/Stats.app"
+            APP_DST="$DEST/Stats Neo.app"
             echo "Installing to $DEST (no admin privileges)..."
         else
             echo "Cannot write to $DEST without admin privileges."
@@ -102,27 +106,31 @@ else
     fi
     "${INSTALL_CMD[@]}" /bin/mkdir -p "$DEST"
     if command -v ditto >/dev/null 2>&1; then
-        "${INSTALL_CMD[@]}" ditto "$MOUNT/Stats.app" "$APP_DST"
+        "${INSTALL_CMD[@]}" ditto "$MOUNT/Stats Neo.app" "$APP_DST"
     else
-        "${INSTALL_CMD[@]}" cp -Rf "$MOUNT/Stats.app" "$APP_DST"
+        "${INSTALL_CMD[@]}" cp -Rf "$MOUNT/Stats Neo.app" "$APP_DST"
     fi
     /usr/bin/hdiutil detach "$MOUNT" >/dev/null 2>&1
     MOUNT=""
     "${INSTALL_CMD[@]}" /usr/bin/xattr -dr com.apple.quarantine "$APP_DST" 2>/dev/null || true
     APP="$APP_DST"
-    echo "Installed Stats to $APP"
+    echo "Installed Stats Neo to $APP"
 fi
+
+EXECUTABLE="$(/usr/bin/plutil -extract CFBundleExecutable raw "$APP/Contents/Info.plist")"
+BIN="$APP/Contents/MacOS/$EXECUTABLE"
 
 HAS_GUI=0
 if launchctl print "gui/$UID_NUM" >/dev/null 2>&1; then
     HAS_GUI=1
     launchctl bootout "gui/$UID_NUM/$AGENT_LABEL" 2>/dev/null || true
 else
-    echo "No active GUI session. Stats needs a logged-in user session and will start at the next login."
+    echo "No active GUI session. Stats Neo needs a logged-in user session and will start at the next login."
 fi
 
-if pgrep -x Stats >/dev/null 2>&1; then
-    echo "Stopping running Stats..."
+if pgrep -x "Stats Neo" >/dev/null 2>&1 || pgrep -x Stats >/dev/null 2>&1; then
+    echo "Stopping running Stats Neo/Stats..."
+    pkill -x "Stats Neo" || true
     pkill -x Stats || true
     sleep 1
 fi
@@ -209,9 +217,9 @@ else
 
     echo "Storing tokens in the keychain..."
     security add-generic-password -U -s "$KEYCHAIN_SERVICE" -a access_token -w "$ACCESS_TOKEN" \
-        -T "$APP/Contents/MacOS/Stats" -T /usr/bin/security
+        -T "$BIN" -T /usr/bin/security
     security add-generic-password -U -s "$KEYCHAIN_SERVICE" -a refresh_token -w "$REFRESH_TOKEN" \
-        -T "$APP/Contents/MacOS/Stats" -T /usr/bin/security
+        -T "$BIN" -T /usr/bin/security
     security find-generic-password -s "$KEYCHAIN_SERVICE" -a access_token -w >/dev/null || {
         echo "Token verification failed"
         exit 1
@@ -219,7 +227,6 @@ else
 fi
 
 PLIST="$HOME/Library/LaunchAgents/$AGENT_LABEL.plist"
-BIN="$APP/Contents/MacOS/Stats"
 /bin/mkdir -p "$(dirname "$PLIST")"
 cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -247,7 +254,7 @@ echo "Installed the launchd agent."
 
 if [[ "$HAS_GUI" -eq 1 ]]; then
     if ! launchctl bootstrap "gui/$UID_NUM" "$PLIST" 2>/dev/null; then
-        open "$APP" || echo "Failed to launch Stats"
+        open "$APP" || echo "Failed to launch Stats Neo"
     fi
     sleep 5
 fi
@@ -269,14 +276,14 @@ while [[ "$(date +%s)" -lt "$DEADLINE" ]]; do
 done
 
 echo ""
-echo "Stats ${VERSION_STR:-unknown} installed at $APP"
+echo "Stats Neo ${VERSION_STR:-unknown} installed at $APP"
 echo "Machine ID: $DEVICE_ID"
 if [[ "$ONLINE" -eq 1 ]]; then
     echo "Machine is online and streaming metrics."
 elif [[ "$FOUND" -eq 1 ]]; then
     echo "Machine is registered and should come online shortly."
 else
-    echo "Machine is not visible in the account yet. If the GUI session is active, check with: pgrep -x Stats"
+    echo "Machine is not visible in the account yet. If the GUI session is active, check with: pgrep -x 'Stats Neo'"
 fi
 echo "Dashboard: $APP_HOST/machine/$DEVICE_ID"
 if [[ "$(uname -m)" == "x86_64" ]]; then

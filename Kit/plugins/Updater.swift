@@ -124,10 +124,15 @@ public class Updater {
                 let jsonResponse = try JSONSerialization.jsonObject(with: data, options: [])
                 guard let jsonArray = jsonResponse as? [String: Any],
                       let lastVersion = jsonArray["tag_name"] as? String,
-                      let assets = jsonArray["assets"] as? [[String: Any]],
-                      let asset = assets.first(where: {$0["name"] as? String == "\(self.appName).dmg"}),
-                      let downloadURL = asset["browser_download_url"] as? String else {
+                      let assets = jsonArray["assets"] as? [[String: Any]] else {
                     completion(nil, "parse json")
+                    return
+                }
+                let preferredName = "\(self.appName).dmg"
+                let asset = assets.first(where: { ($0["name"] as? String) == preferredName }) ??
+                    assets.first(where: { ($0["name"] as? String)?.lowercased().hasSuffix(".dmg") == true })
+                guard let downloadURL = asset?["browser_download_url"] as? String else {
+                    completion(nil, "release has no dmg asset")
                     return
                 }
                 
@@ -212,7 +217,7 @@ public class Updater {
         
         print("DMG is mounted at \(mountPoint)")
         
-        let mountedApp = (mountPoint as NSString).appendingPathComponent("Stats.app")
+        let mountedApp = (mountPoint as NSString).appendingPathComponent("\(self.appName).app")
         if let err = self.validateAppSignature(at: mountedApp) {
             _ = self.runProcess("/usr/bin/hdiutil", ["detach", mountPoint, "-force"])
             try? FileManager.default.removeItem(atPath: mountPoint)
@@ -269,7 +274,7 @@ public class Updater {
     }
     
     private func makeUniqueMountPoint() throws -> String {
-        let template = (NSTemporaryDirectory() as NSString).appendingPathComponent("Stats-update-XXXXXX")
+        let template = (NSTemporaryDirectory() as NSString).appendingPathComponent("Stats-Neo-update-XXXXXX")
         var bytes = Array(template.utf8).map { Int8($0) } + [Int8(0)]
         guard let dir = mkdtemp(&bytes) else {
             throw NSError(domain: "Updater", code: Int(errno), userInfo: [NSLocalizedDescriptionKey: String(cString: strerror(errno))])

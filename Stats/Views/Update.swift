@@ -30,7 +30,7 @@ internal class UpdateWindow: NSWindow, NSWindowDelegate {
             defer: true
         )
         
-        self.title = "Stats"
+        self.title = "Stats Neo"
         self.contentViewController = self.viewController
         self.titlebarAppearsTransparent = true
         self.isReleasedWhenClosed = false
@@ -294,7 +294,7 @@ private class UpdateView: NSView {
     
     @objc private func changelog() {
         if let version = self.version {
-            NSWorkspace.shared.open(URL(string: "https://github.com/exelban/stats/releases/tag/\(version.latest)")!)
+            NSWorkspace.shared.open(URL(string: "https://github.com/BianZhongMing/Stats-Neo/releases/tag/\(version.latest)")!)
         }
     }
     
@@ -318,7 +318,8 @@ private class UpdateView: NSView {
         title.alignment = .center
         title.stringValue = localizedString("Installing...")
         
-        let state = NSTextField(wrappingLabelWithString: localizedString("Stats will restart automatically"))
+        let restartMessage = localizedString("Stats will restart automatically").replacingOccurrences(of: "Stats", with: "Stats Neo")
+        let state = NSTextField(wrappingLabelWithString: restartMessage)
         state.font = NSFont.systemFont(ofSize: 12, weight: .regular)
         state.alignment = .center
         state.textColor = .secondaryLabelColor

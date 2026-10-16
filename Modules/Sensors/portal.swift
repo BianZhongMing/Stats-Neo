@@ -44,7 +44,7 @@ public class Portal: PortalWrapper {
             self.list = [:]
         }
         
-        var width: CGFloat = Constants.Popup.width - self.body.edgeInsets.left - self.body.edgeInsets.right
+        var width: CGFloat = CombinedPortalStyle.contentWidth - self.body.edgeInsets.left - self.body.edgeInsets.right
         if list.count >= 4 {
             width -= self.container.scrollWidth ?? Constants.Popup.margins
         }

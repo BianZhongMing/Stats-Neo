@@ -224,7 +224,7 @@ public struct Disk_process: Process_p, Codable {
 public class Disk: Module {
     private let popupView: Popup = Popup(.disk)
     private let settingsView: Settings = Settings(.disk)
-    private let portalView: Portal = Portal(.disk, height: 120)
+    private let portalView: Portal = Portal(.disk, height: 156)
     private let notificationsView: Notifications = Notifications(.disk)
     private let previewView: Preview = Preview(.disk)
     

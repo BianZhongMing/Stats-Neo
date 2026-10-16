@@ -101,7 +101,7 @@ public class RAM: Module {
     public init() {
         self.settingsView = Settings(.RAM)
         self.popupView = Popup(.RAM)
-        self.portalView = Portal(.RAM, height: 80)
+        self.portalView = Portal(.RAM, height: 110)
         self.notificationsView = Notifications(.RAM)
         self.previewView = Preview(.RAM)
         

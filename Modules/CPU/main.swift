@@ -126,7 +126,7 @@ public class CPU: Module {
     public init() {
         self.settingsView = Settings(.CPU)
         self.popupView = Popup(.CPU)
-        self.portalView = Portal(.CPU, height: 120)
+        self.portalView = Portal(.CPU, height: 110)
         self.notificationsView = Notifications(.CPU)
         self.previewView = Preview(.CPU)
         

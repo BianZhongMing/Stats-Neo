@@ -14,7 +14,7 @@ import Kit
 
 public class Portal: PortalWrapper {
     private var circle: PieChartView = PieChartView(drawValue: true)
-    private var chart: NetworkChartView? = nil
+    private var chart: CombinedHistoryBarsView? = nil
     
     private var nameField: NSTextField? = nil
     private var usedField: NSTextField? = nil
@@ -45,39 +45,30 @@ public class Portal: PortalWrapper {
     public override func load() {
         self.body.orientation = .vertical
         self.body.distribution = .fill
-        
-        var top: NSStackView {
-            let view = NSStackView()
-            
-            view.orientation = .horizontal
-            view.distribution = .fillEqually
-            view.spacing = Constants.Popup.spacing*2
-            
-            let chart: NSView = self.circleView()
-            let details: NSView = self.detailsView()
-            
-            view.addArrangedSubview(chart)
-            view.addArrangedSubview(details)
-            
-            return view
-        }
-        
-        var bottom: NSStackView {
-            let view = NSStackView()
-            
-            view.orientation = .horizontal
-            view.distribution = .fillEqually
-            view.spacing = Constants.Popup.spacing*2
-            
-            let chart: NSView = self.chartView()
-            let details: NSView = self.ioView()
-            
-            view.addArrangedSubview(details)
-            view.addArrangedSubview(chart)
-            
-            return view
-        }
-        
+        self.body.spacing = 10
+
+        let top = NSStackView()
+        top.orientation = .horizontal
+        top.distribution = .fill
+        top.alignment = .centerY
+        top.spacing = 12
+        top.heightAnchor.constraint(equalToConstant: 84).isActive = true
+        let circle = self.circleView()
+        circle.widthAnchor.constraint(equalToConstant: 116).isActive = true
+        top.addArrangedSubview(circle)
+        top.addArrangedSubview(self.detailsView())
+
+        let bottom = NSStackView()
+        bottom.orientation = .horizontal
+        bottom.distribution = .fill
+        bottom.alignment = .centerY
+        bottom.spacing = 10
+        bottom.heightAnchor.constraint(equalToConstant: 52).isActive = true
+        let io = self.ioView()
+        io.widthAnchor.constraint(equalToConstant: 150).isActive = true
+        bottom.addArrangedSubview(io)
+        bottom.addArrangedSubview(self.chartView())
+
         self.body.addArrangedSubview(top)
         self.body.addArrangedSubview(bottom)
     }
@@ -85,8 +76,8 @@ public class Portal: PortalWrapper {
     private func circleView() -> NSView {
         let view = NSStackView()
         
-        view.heightAnchor.constraint(equalToConstant: 70).isActive = true
-        view.edgeInsets = NSEdgeInsets(top: 5, left: 5, bottom: 5, right: 5)
+        view.heightAnchor.constraint(equalToConstant: 84).isActive = true
+        view.edgeInsets = NSEdgeInsets(top: 7, left: 14, bottom: 7, right: 14)
         
         view.addArrangedSubview(self.circle)
         
@@ -94,27 +85,19 @@ public class Portal: PortalWrapper {
     }
     
     private func detailsView() -> NSView {
-        let view = NSStackView()
-        view.orientation = .vertical
-        view.distribution = .fillEqually
-        view.spacing = Constants.Popup.spacing*2
-        
-        self.nameField = portalRow(view, title: "\(localizedString("Name")):").1
-        self.usedField = portalRow(view, title: "\(localizedString("Used")):").1
-        self.freeField = portalRow(view, title: "\(localizedString("Free")):").1
-        
+        let view = combinedMetricStack(spacing: 5)
+        self.nameField = combinedDataRow(view, title: "\(localizedString("Name")):")
+        self.usedField = combinedDataRow(view, title: "\(localizedString("Used")):")
+        self.freeField = combinedDataRow(view, title: "\(localizedString("Free")):")
         return view
     }
     
     private func chartView() -> NSView {
         let view = NSStackView()
-        view.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 5)
+        view.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
+        CombinedPortalStyle.surface(view)
         
-        view.wantsLayer = true
-        view.layer?.backgroundColor = NSColor.lightGray.withAlphaComponent(0.1).cgColor
-        view.layer?.cornerRadius = Constants.Popup.radius
-        
-        let chart = NetworkChartView(num: 120, minMax: false, outColor: self.writeColor, inColor: self.readColor)
+        let chart = CombinedHistoryBarsView(count: 12, firstColor: self.writeColor, secondColor: self.readColor)
         self.chart = chart
         
         view.addArrangedSubview(chart)
@@ -123,14 +106,9 @@ public class Portal: PortalWrapper {
     }
     
     private func ioView() -> NSView {
-        let view = NSStackView()
-        view.orientation = .vertical
-        view.distribution = .fillEqually
-        view.spacing = Constants.Popup.spacing*2
-        
-        (_, self.writeField) = portalWithColorRow(view, color: self.writeColor, title: "\(localizedString("Write")):")
-        (_, self.readField) = portalWithColorRow(view, color: self.readColor, title: "\(localizedString("Read")):")
-        
+        let view = combinedMetricStack(spacing: 5)
+        self.writeField = combinedDataRow(view, title: "\(localizedString("Write")):", color: self.writeColor)
+        self.readField = combinedDataRow(view, title: "\(localizedString("Read")):", color: self.readColor)
         return view
     }
     
@@ -153,7 +131,7 @@ public class Portal: PortalWrapper {
     
     internal func activityCallback(_ value: drive) {
         DispatchQueue.main.async(execute: {
-            self.chart?.addValue(upload: Double(value.activity.write), download: Double(value.activity.read))
+            self.chart?.addValue(first: Double(value.activity.write), second: Double(value.activity.read))
             
             self.writeField?.stringValue = Units(bytes: value.activity.write).getReadableSpeed(base: self.base, unit: self.speedUnit)
             self.readField?.stringValue = Units(bytes: value.activity.read).getReadableSpeed(base: self.base, unit: self.speedUnit)

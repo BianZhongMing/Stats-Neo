@@ -28,7 +28,7 @@ public class Sensors: Module {
     public init() {
         self.settingsView = Settings(.sensors)
         self.popupView = Popup()
-        self.portalView = Portal(.sensors)
+        self.portalView = Portal(.sensors, height: 112)
         self.notificationsView = Notifications(.sensors)
         self.selectedSensor = Store.shared.string(key: "\(ModuleType.sensors.stringValue)_sensor", defaultValue: "Average System Total")
         
