@@ -1,24 +1,23 @@
-# Stats Neo v1.0.1
+# Stats Neo v1.0.2
 
-Stats Neo 1.0.1 improves the application-window lifecycle while preserving the menu-bar-first experience introduced in 1.0.0.
+Stats Neo 1.0.2 fixes truncated upload and download values in the Combined menu-bar network-speed display.
 
-## Dock lifecycle
+## Combined network-speed display
 
-- Opening a program page now switches Stats Neo to a regular macOS application and shows its icon in the Dock.
-- Closing the last visible program page restores accessory mode and hides the Dock icon without quitting the menu-bar process.
-- Settings, first-run setup, update, and support windows participate in the lifecycle.
-- Combined and standalone module popovers remain menu-bar popovers and do not show the Dock icon by themselves.
-- When multiple program pages are visible, closing one page keeps the Dock icon until the final page closes.
+- Upload and download values now size their value column from the actual formatted text instead of relying on a fixed-width slot.
+- Longer values such as `11.9 MB/s` remain fully visible rather than losing their trailing unit characters.
+- The two-row display uses the longer of the upload and download strings so both rows fit consistently.
+- Short values retain the existing compact minimum width.
+- Dynamic sizing is enabled only for the dedicated Combined network-speed widget; standalone Network widgets keep their existing layout.
 
 ## Compatibility
 
-- Existing preferences, Bundle ID, menu-bar modules, Combined configuration, widgets, and update path remain compatible with 1.0.0.
+- Existing preferences, Bundle ID, Combined configuration, standalone modules, widgets, and update path remain compatible with 1.0.1.
 - Universal application for Apple Silicon and Intel.
 - macOS 12 or newer.
 
 ## Verification
 
-- Opening Settings was verified to change the running application's activation policy to `regular`.
-- Closing Settings was verified to restore the activation policy to `accessory` while the menu-bar process remained running.
-- SwiftLint and all 41 localization files pass their repository checks.
-- Release and Debug builds, stable XCTest suite, standalone Intel/ARM SMC tests, universal architecture, signature verification, and package inspection are release gates.
+- Dedicated width tests cover short values, long values, and selection of the longer upload/download row.
+- The stable Kit regression suite passes with the upstream legacy beta-version assertions excluded as an existing baseline issue.
+- Release builds, localization checks, SMC Intel/ARM tests, universal architecture, signature verification, and package inspection remain release gates.

@@ -30,6 +30,9 @@ internal class CombinedView: NSObject, NSGestureRecognizerDelegate {
     override init() {
         super.init()
 
+        // Combined owns a dedicated SpeedWidget, so it can size the menu-bar item from
+        // the rendered upload/download strings without changing standalone Network widgets.
+        self.networkSpeedView.autoSizeValueWidth = true
         self.networkSpeedView.widthHandler = { [weak self] in
             DispatchQueue.main.async {
                 self?.updateNetworkSpeedWidth()

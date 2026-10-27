@@ -9,6 +9,7 @@
 //  Copyright © 2026 Serhiy Mytrovtsiy. All rights reserved.
 //
 
+import Cocoa
 import XCTest
 import Kit
 
@@ -70,6 +71,48 @@ class KitTests: XCTestCase {
         XCTAssertEqual(Units(bytes: 200_000_000_000).getReadableSpeed(base: .bit), "1.6 Tb/s")
     }
     
+    func testSpeedWidgetMeasuredValueWidthUsesMinimumForShortValues() throws {
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular)
+        let width = SpeedWidget.measuredValueWidth(
+            strings: ["0 KB/s", "1 KB/s"],
+            font: font,
+            minimum: 42,
+            horizontalPadding: 6
+        )
+        XCTAssertEqual(width, 42)
+    }
+
+    func testSpeedWidgetMeasuredValueWidthExpandsForLongValues() throws {
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular)
+        let value = "11.9 MB/s"
+        let measuredText = ceil((value as NSString).size(withAttributes: [.font: font]).width)
+        let width = SpeedWidget.measuredValueWidth(
+            strings: [value, "0 KB/s"],
+            font: font,
+            minimum: 42,
+            horizontalPadding: 6
+        )
+        XCTAssertGreaterThan(width, 42)
+        XCTAssertGreaterThanOrEqual(width - 6, measuredText)
+    }
+
+    func testSpeedWidgetMeasuredValueWidthUsesLongestRow() throws {
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular)
+        let shortWidth = SpeedWidget.measuredValueWidth(
+            strings: ["0 KB/s"],
+            font: font,
+            minimum: 42,
+            horizontalPadding: 6
+        )
+        let mixedWidth = SpeedWidget.measuredValueWidth(
+            strings: ["0 KB/s", "999.9 MB/s"],
+            font: font,
+            minimum: 42,
+            horizontalPadding: 6
+        )
+        XCTAssertGreaterThan(mixedWidth, shortWidth)
+    }
+
     func testUnitsGetReadableSpeed_fixedUnit() throws {
         XCTAssertEqual(Units(bytes: 500_000).getReadableSpeed(base: .byte, unit: "KB"), "500 KB/s")
         XCTAssertEqual(Units(bytes: 500_000).getReadableSpeed(base: .byte, unit: "MB"), "0.5 MB/s")
